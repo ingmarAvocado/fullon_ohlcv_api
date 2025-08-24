@@ -213,12 +213,14 @@ async def get_read_only_candle_repository(exchange: str, symbol: str) -> CandleR
 
 ### Master API Integration Flow
 ```
-1. Master API Startup
-2. Import fullon_ohlcv_api.get_all_routers()
-3. Mount Routers with /ohlcv prefix
-4. Compose with other fullon APIs
-5. Single unified API documentation
-6. Centralized logging and monitoring
+1. Fullon Master Trading API Startup
+2. Import get_all_routers from each fullon library
+3. Mount routers with versioned, semantic prefixes:
+   - /api/v1/market/ (fullon_ohlcv_api) - Historical market data
+   - /api/v1/db/ (fullon_orm_api) - Persistent application data
+   - /api/v1/cache/ (fullon_cache_api) - Real-time & temporary data
+4. Generate unified OpenAPI documentation with organized tags
+5. Centralized logging, monitoring, and error handling
 ```
 
 ## 📊 Database Integration
@@ -285,23 +287,65 @@ make check        # Run all quality checks
 
 ### Master API Integration Example
 ```python
-# master_api/main.py
+# fullon_master_api/main.py
 from fastapi import FastAPI
-from fullon_ohlcv_api import get_all_routers as ohlcv_routers
-from fullon_orm_api import get_all_routers as orm_routers
+from fullon_orm_api import get_all_routers as get_orm_routers
+from fullon_cache_api import get_all_routers as get_cache_routers
+from fullon_ohlcv_api import get_all_routers as get_ohlcv_routers
 
-app = FastAPI(title="Fullon Master API")
+app = FastAPI(title="Fullon Master Trading API", version="1.0.0")
 
-# Compose OHLCV API
-for router in ohlcv_routers():
-    app.include_router(router, prefix="/ohlcv", tags=["OHLCV"])
+# Database operations
+for router in get_orm_routers():
+    app.include_router(router, prefix="/api/v1/db", tags=["Database"])
 
-# Compose ORM API  
-for router in orm_routers():
-    app.include_router(router, prefix="/orm", tags=["ORM"])
+# Cache operations
+for router in get_cache_routers():
+    app.include_router(router, prefix="/api/v1/cache", tags=["Cache"])
 
-# Result: Unified API with /ohlcv/* and /orm/* endpoints
+# Market data operations
+for router in get_ohlcv_routers():
+    app.include_router(router, prefix="/api/v1/market", tags=["Market Data"])
+
+# Clear API structure:
+# /api/v1/db/trades/           - Persistent trade records
+# /api/v1/cache/trades/queue   - Real-time trade queue
+# /api/v1/market/trades/       - Market trade data
+# /docs                        - Combined documentation
 ```
+
+### Ecosystem Architecture Benefits
+
+**🎯 Semantic URL Structure**
+- Clear separation between data types and operations
+- Intuitive API discovery for developers
+- Consistent versioning across all components
+
+**📚 OpenAPI Documentation Organization**
+```yaml
+# Generated OpenAPI structure
+paths:
+  /api/v1/db/trades/:
+    get:
+      tags: ["Database"] 
+      summary: "Get trade records from database"
+      
+  /api/v1/cache/trades/queue:
+    get:
+      tags: ["Cache"]
+      summary: "Get trade queue status from Redis"
+      
+  /api/v1/market/trades/{exchange}/{symbol}:
+    get:
+      tags: ["Market Data"]
+      summary: "Get historical trade data"
+```
+
+**🔄 Clean Component Integration**
+- Each fullon library maintains independence
+- No cross-dependencies between API components
+- Easy to add/remove components from master API
+- Simplified testing and deployment strategies
 
 ## 📈 Performance Considerations
 

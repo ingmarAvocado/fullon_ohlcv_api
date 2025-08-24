@@ -23,12 +23,45 @@ A focused, LRRS-compliant (Little, Responsible, Reusable, Separate) library that
 
 ## 🏗️ Architecture
 
-Following LRRS principles:
+### LRRS Compliance
+
+Following LRRS principles for maximum ecosystem integration:
 
 - **Little**: Single purpose - READ-ONLY OHLCV market data API gateway
 - **Responsible**: Clear separation between routing, validation, and read-only data operations  
 - **Reusable**: Works with any fullon_ohlcv deployment, composable into master_api
 - **Separate**: Zero coupling to other systems beyond fullon_ohlcv + fullon_log
+
+### Fullon Ecosystem Integration
+
+This library is designed to integrate seamlessly with the broader fullon trading ecosystem:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Fullon Master Trading API                   │
+├─────────────────┬─────────────────┬─────────────────────────────┤
+│  📊 Market Data │  🗄️ Database    │  ⚡ Cache & Real-time       │
+│                 │                 │                             │
+│ fullon_ohlcv_api│ fullon_orm_api  │ fullon_cache_api            │
+│                 │                 │                             │
+│ Historical data │ Persistent      │ Live feeds &                │
+│ Time-series     │ Trade records   │ Real-time queues            │
+│ OHLCV analysis  │ Positions       │ Price alerts                │
+│                 │ Portfolio data  │ Event streaming             │
+└─────────────────┴─────────────────┴─────────────────────────────┘
+```
+
+### API Structure Benefits
+
+**🎯 Clear Separation of Concerns**
+- `/api/v1/market/` - Historical & analytical data (READ-ONLY)
+- `/api/v1/db/` - Persistent application data (CRUD operations)  
+- `/api/v1/cache/` - Real-time & temporary data (pub/sub, queues)
+
+**📚 Documentation Benefits**
+- Combined Swagger/OpenAPI docs with organized tags
+- Clear endpoint categorization
+- Consistent versioning across all modules
 
 ```
 fullon_ohlcv_api/
@@ -195,48 +228,70 @@ for router in get_all_routers():
 ```python
 from fastapi import FastAPI
 
-# Master API with multiple fullon libraries
-app = FastAPI(title="Fullon Master API")
+# Fullon Master Trading API with complete ecosystem
+app = FastAPI(title="Fullon Master Trading API", version="1.0.0")
 
-# Add fullon_ohlcv_api
-from fullon_ohlcv_api import get_all_routers as ohlcv_routers
-for router in ohlcv_routers():
-    app.include_router(router, prefix="/ohlcv", tags=["OHLCV"])
+# Database operations
+from fullon_orm_api import get_all_routers as get_orm_routers
+for router in get_orm_routers():
+    app.include_router(router, prefix="/api/v1/db", tags=["Database"])
 
-# Add other fullon libraries
-# from fullon_orm_api import get_all_routers as orm_routers
-# from fullon_trading_api import get_all_routers as trading_routers
-# etc.
+# Cache operations  
+from fullon_cache_api import get_all_routers as get_cache_routers
+for router in get_cache_routers():
+    app.include_router(router, prefix="/api/v1/cache", tags=["Cache"])
+
+# Market data operations
+from fullon_ohlcv_api import get_all_routers as get_ohlcv_routers
+for router in get_ohlcv_routers():
+    app.include_router(router, prefix="/api/v1/market", tags=["Market Data"])
+
+# Results in clean API separation:
+# /api/v1/db/trades/              - Persistent trade records
+# /api/v1/cache/trades/queue      - Real-time trade queue
+# /api/v1/market/trades/          - Historical market data
+# /docs                           - Combined documentation
 ```
 
 ## 📊 API Endpoints (READ-ONLY)
 
-### Trade Data Endpoints
+### Market Data Endpoints (Standalone)
 
+When used standalone, endpoints are accessible directly:
 - **GET** `/api/trades/{exchange}/{symbol}` - Get recent trades
-- **GET** `/api/trades/{exchange}/{symbol}/range` - Get trades in time range
-- **GET** `/api/trades/{exchange}/{symbol}/stats` - Get trade statistics
-- **GET** `/api/trades/{exchange}/{symbol}/export` - Export trade data
-
-### Candle/OHLCV Data Endpoints  
-
+- **GET** `/api/trades/{exchange}/{symbol}/range` - Get trades in time range  
 - **GET** `/api/candles/{exchange}/{symbol}/{timeframe}` - Get recent candles
-- **GET** `/api/candles/{exchange}/{symbol}/{timeframe}/range` - Historical candles
-- **GET** `/api/candles/{exchange}/{symbol}/ohlcv` - Latest OHLCV summary
-- **GET** `/api/candles/{exchange}/{symbol}/analysis` - Candle pattern analysis
-
-### Exchange & Symbol Endpoints
-
 - **GET** `/api/exchanges` - List available exchanges
-- **GET** `/api/exchanges/{exchange}/symbols` - Symbols for exchange
-- **GET** `/api/exchanges/{exchange}/{symbol}/info` - Symbol information
-- **GET** `/api/symbols/search` - Search symbols across exchanges
+
+### Master API Integration (Recommended)
+
+When integrated into the master API, endpoints are prefixed with `/api/v1/market`:
+
+**🏢 Market Data Operations** (`/api/v1/market/`)
+- **GET** `/api/v1/market/trades/{exchange}/{symbol}` - Historical trade data
+- **GET** `/api/v1/market/trades/{exchange}/{symbol}/range` - Time-range trade queries
+- **GET** `/api/v1/market/trades/{exchange}/{symbol}/stats` - Trade statistics
+- **GET** `/api/v1/market/trades/{exchange}/{symbol}/export` - Export trade data
+- **GET** `/api/v1/market/candles/{exchange}/{symbol}/{timeframe}` - OHLCV candles
+- **GET** `/api/v1/market/candles/{exchange}/{symbol}/{timeframe}/range` - Historical candles
+- **GET** `/api/v1/market/exchanges` - Available exchanges catalog
+- **GET** `/api/v1/market/exchanges/{exchange}/symbols` - Exchange symbols
+
+**🗄️ Database Operations** (`/api/v1/db/`) - *via fullon_orm_api*
+- **GET** `/api/v1/db/trades/` - Persistent trade records  
+- **POST** `/api/v1/db/trades/` - Store trade records
+- **GET** `/api/v1/db/positions/` - Trading positions
+
+**⚡ Cache Operations** (`/api/v1/cache/`) - *via fullon_cache_api*  
+- **GET** `/api/v1/cache/trades/queue` - Real-time trade queue
+- **GET** `/api/v1/cache/prices/live` - Live price feeds
+- **POST** `/api/v1/cache/alerts/` - Price alert management
 
 ### System Endpoints
 
 - **GET** `/health` - Health check endpoint
 - **GET** `/` - API information and links  
-- **GET** `/docs` - Interactive Swagger documentation
+- **GET** `/docs` - Interactive Swagger documentation (combined when using master API)
 - **GET** `/redoc` - ReDoc documentation
 
 ## 🧪 Testing

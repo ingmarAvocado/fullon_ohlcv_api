@@ -50,36 +50,37 @@ def example_2_router_composition():
 
 
 def example_3_multiple_libraries():
-    """Example 3: Composing multiple fullon libraries."""
-    print("\n=== Example 3: Multiple Library Composition ===")
+    """Example 3: Composing multiple fullon libraries (Production Pattern)."""
+    print("\n=== Example 3: Fullon Master Trading API Composition ===")
     
-    # This is how master_api would look with multiple libraries
-    app = FastAPI(title="Fullon Master API", version="1.0.0")
+    # Production master API with full ecosystem
+    app = FastAPI(title="Fullon Master Trading API", version="1.0.0")
     
-    # Add fullon_ohlcv_api
-    from fullon_ohlcv_api import get_all_routers as ohlcv_routers
-    for router in ohlcv_routers():
-        app.include_router(router, prefix="/ohlcv", tags=["OHLCV"])
+    # Database operations
+    from fullon_ohlcv_api import get_all_routers as get_ohlcv_routers
+    for router in get_ohlcv_routers():
+        app.include_router(router, prefix="/api/v1/market", tags=["Market Data"])
     
-    # Future libraries would be added similarly:
-    # from fullon_orm_api import get_all_routers as orm_routers
-    # for router in orm_routers():
-    #     app.include_router(router, prefix="/orm", tags=["ORM"])
+    # Future libraries integration:
+    # from fullon_orm_api import get_all_routers as get_orm_routers
+    # for router in get_orm_routers():
+    #     app.include_router(router, prefix="/api/v1/db", tags=["Database"])
     
-    # from fullon_trading_api import get_all_routers as trading_routers
-    # for router in trading_routers():
-    #     app.include_router(router, prefix="/trading", tags=["Trading"])
+    # from fullon_cache_api import get_all_routers as get_cache_routers
+    # for router in get_cache_routers():
+    #     app.include_router(router, prefix="/api/v1/cache", tags=["Cache"])
     
-    # from fullon_analytics_api import get_all_routers as analytics_routers  
-    # for router in analytics_routers():
-    #     app.include_router(router, prefix="/analytics", tags=["Analytics"])
+    print("Master Trading API structure:")
+    print("  /api/v1/market/* - Historical market data (fullon_ohlcv_api)")
+    print("  /api/v1/db/*     - Persistent application data (fullon_orm_api)")
+    print("  /api/v1/cache/*  - Real-time & temporary data (fullon_cache_api)")
+    print("  /docs            - Combined API documentation with organized tags")
     
-    print("Master API structure:")
-    print("  /ohlcv/*        - OHLCV market data operations")
-    print("  /orm/*          - ORM operations (future)")
-    print("  /trading/*      - Trading operations (future)")
-    print("  /analytics/*    - Analytics operations (future)")
-    print("  /docs           - Combined API documentation")
+    print("\nAPI Benefits:")
+    print("  📊 Clear separation: market data vs app data vs real-time")
+    print("  🔗 Semantic URLs: intuitive endpoint discovery")
+    print("  📚 Organized docs: tagged by data type and operation")
+    print("  🔄 Versioned API: /api/v1/ for future compatibility")
     
     return app
 
@@ -221,14 +222,21 @@ if __name__ == "__main__":
     print("  uvicorn library_usage:app6 --reload  # Example 6 - OHLCV Focus")
     print("  uvicorn library_usage:app7 --reload  # Example 7 - Production Ready")
     
-    print("\n📊 READ-ONLY OHLCV API Endpoints (when implemented):")
-    print("  GET  /ohlcv/trades/{exchange}/{symbol}")
-    print("  GET  /ohlcv/candles/{exchange}/{symbol}/{timeframe}")
-    print("  GET  /ohlcv/exchanges")
-    print("  GET  /ohlcv/trades/{exchange}/{symbol}/stats")
-    print("  GET  /ohlcv/trades/{exchange}/{symbol}/export")
+    print("\n📊 API Endpoint Structure:")
+    print("  STANDALONE MODE (development/testing):")
+    print("    GET  /api/trades/{exchange}/{symbol}")
+    print("    GET  /api/candles/{exchange}/{symbol}/{timeframe}")
+    print("    GET  /api/exchanges")
+    
+    print("\n  MASTER API MODE (production/recommended):")
+    print("    GET  /api/v1/market/trades/{exchange}/{symbol}")
+    print("    GET  /api/v1/market/candles/{exchange}/{symbol}/{timeframe}")
+    print("    GET  /api/v1/market/exchanges")
+    print("    GET  /api/v1/market/trades/{exchange}/{symbol}/stats")
+    print("    GET  /api/v1/market/trades/{exchange}/{symbol}/export")
     
     print("\n🔗 Documentation URLs:")
-    print("  📚 Interactive docs: /docs")
+    print("  📚 Interactive docs: /docs (combined when using master API)")
     print("  📖 ReDoc: /redoc") 
     print("  ❤️ Health check: /health")
+    print("  🎯 Organized tags: Market Data, Database, Cache")

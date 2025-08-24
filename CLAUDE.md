@@ -21,10 +21,25 @@
 # Library usage (PRIMARY use case):
 from fullon_ohlcv_api import FullonOhlcvGateway, get_all_routers
 
-# Master API integration:
-app = FastAPI(title="Fullon Master API")
-for router in get_all_routers():
-    app.include_router(router, prefix="/ohlcv")
+# Fullon Master Trading API integration (RECOMMENDED):
+from fastapi import FastAPI
+from fullon_orm_api import get_all_routers as get_orm_routers
+from fullon_cache_api import get_all_routers as get_cache_routers
+from fullon_ohlcv_api import get_all_routers as get_ohlcv_routers
+
+app = FastAPI(title="Fullon Master Trading API", version="1.0.0")
+
+# Database operations
+for router in get_orm_routers():
+    app.include_router(router, prefix="/api/v1/db", tags=["Database"])
+
+# Cache operations  
+for router in get_cache_routers():
+    app.include_router(router, prefix="/api/v1/cache", tags=["Cache"])
+
+# Market data operations
+for router in get_ohlcv_routers():
+    app.include_router(router, prefix="/api/v1/market", tags=["Market Data"])
 
 # Standalone usage (TESTING only):
 python -m fullon_ohlcv_api.standalone_server
@@ -58,26 +73,48 @@ async with CandleRepository("binance", "ETH/USDT") as repo:
 ```
 
 ### **3. Read-Only Time-Series API Endpoints**
+
+**Standalone Mode** (testing/development):
 - `GET /api/trades/{exchange}/{symbol}` - Retrieve recent trades
 - `GET /api/trades/{exchange}/{symbol}/range` - Historical trade data
 - `GET /api/candles/{exchange}/{symbol}/{timeframe}` - Retrieve candle data  
 - `GET /api/exchanges` - Available exchanges catalog
-- `GET /api/symbols/{exchange}` - Available symbols per exchange
-- `GET /api/timeframes` - Supported timeframe catalog
+
+**Master API Mode** (production/recommended):
+- `GET /api/v1/market/trades/{exchange}/{symbol}` - Historical market trades
+- `GET /api/v1/market/trades/{exchange}/{symbol}/range` - Time-range trade queries  
+- `GET /api/v1/market/trades/{exchange}/{symbol}/stats` - Trade statistics
+- `GET /api/v1/market/candles/{exchange}/{symbol}/{timeframe}` - OHLCV candles
+- `GET /api/v1/market/candles/{exchange}/{symbol}/{timeframe}/range` - Historical candles
+- `GET /api/v1/market/exchanges` - Available exchanges catalog
+- `GET /api/v1/market/exchanges/{exchange}/symbols` - Exchange symbols
 
 ## 🛠️ Architecture Overview
 
+### **Fullon Ecosystem Integration**
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Master API    │───▶│  fullon_ohlcv_api │───▶│  fullon_ohlcv   │
-│  (Composition)  │    │    (Library)      │    │   (Database)    │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                              ↕
-                       ┌──────────────────┐
-                       │   PostgreSQL     │
-                       │  + TimescaleDB   │
-                       └──────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                 Fullon Master Trading API                      │
+│                     /api/v1/* endpoints                        │
+├─────────────┬─────────────────┬─────────────────────────────────┤
+│📊 /market/  │  🗄️ /db/        │  ⚡ /cache/                     │
+│             │                 │                                 │
+│fullon_ohlcv │ fullon_orm_api  │ fullon_cache_api                │
+│_api         │                 │                                 │
+└─────────────┴─────────────────┴─────────────────────────────────┘
+      │                   │                       │
+      ▼                   ▼                       ▼
+┌─────────────┐   ┌─────────────────┐   ┌─────────────────┐
+│fullon_ohlcv │   │ Application     │   │ Redis/Cache     │
+│(TimescaleDB)│   │ Database        │   │ Real-time Data  │
+│Time-series  │   │ Persistent Data │   │ Queues & Events │
+└─────────────┘   └─────────────────┘   └─────────────────┘
 ```
+
+### **Component Responsibilities**
+- **fullon_ohlcv_api**: Historical market data, time-series analysis (READ-ONLY)
+- **fullon_orm_api**: Application data persistence, user records, trading positions
+- **fullon_cache_api**: Real-time feeds, price alerts, temporary data, pub/sub
 
 ### **Project Structure**
 ```
