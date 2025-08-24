@@ -5,13 +5,13 @@ This module provides common test fixtures, configuration, and utilities
 that are shared across all test modules.
 """
 
-import pytest
 import asyncio
-from typing import Generator, AsyncGenerator
-from fastapi.testclient import TestClient
-from httpx import AsyncClient
+from collections.abc import AsyncGenerator, Generator
 
+import pytest
+from fastapi.testclient import TestClient
 from fullon_ohlcv_api import FullonOhlcvGateway
+from httpx import ASGITransport, AsyncClient
 
 
 @pytest.fixture(scope="session")
@@ -28,7 +28,7 @@ def gateway() -> FullonOhlcvGateway:
     return FullonOhlcvGateway(
         title="Test OHLCV API",
         description="Test instance of fullon_ohlcv_api",
-        version="0.1.0-test"
+        version="0.1.0-test",
     )
 
 
@@ -47,17 +47,16 @@ def client(app) -> TestClient:
 @pytest.fixture
 async def async_client(app) -> AsyncGenerator[AsyncClient, None]:
     """Create an async test client for asynchronous testing."""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         yield ac
 
 
 @pytest.fixture
 def gateway_with_prefix() -> FullonOhlcvGateway:
     """Create a FullonOhlcvGateway with custom prefix for testing composition."""
-    return FullonOhlcvGateway(
-        title="Test OHLCV API with Prefix",
-        prefix="/ohlcv"
-    )
+    return FullonOhlcvGateway(title="Test OHLCV API with Prefix", prefix="/ohlcv")
 
 
 @pytest.fixture
@@ -80,7 +79,7 @@ def sample_trade_data():
         "timestamp": "2024-01-01T12:00:00Z",
         "price": 45000.50,
         "volume": 0.1,
-        "side": "buy"
+        "side": "buy",
     }
 
 
@@ -95,7 +94,7 @@ def sample_candle_data():
         "close": 45050.00,
         "volume": 10.5,
         "closed": True,
-        "timeframe": "1h"
+        "timeframe": "1h",
     }
 
 
@@ -108,14 +107,14 @@ def sample_trades_bulk():
                 "timestamp": "2024-01-01T12:00:00Z",
                 "price": 45000.50,
                 "volume": 0.1,
-                "side": "buy"
+                "side": "buy",
             },
             {
                 "timestamp": "2024-01-01T12:00:30Z",
                 "price": 44999.75,
                 "volume": 0.05,
-                "side": "sell"
-            }
+                "side": "sell",
+            },
         ]
     }
 
@@ -128,7 +127,7 @@ def sample_exchange_data():
         "display_name": "Binance",
         "status": "active",
         "symbols_count": 1500,
-        "last_updated": "2024-01-01T12:00:00Z"
+        "last_updated": "2024-01-01T12:00:00Z",
     }
 
 
@@ -138,43 +137,36 @@ pytest_plugins = ["pytest_asyncio"]
 
 def pytest_configure(config):
     """Configure pytest with custom markers."""
-    config.addinivalue_line(
-        "markers", "unit: mark test as a unit test"
-    )
-    config.addinivalue_line(
-        "markers", "integration: mark test as an integration test"
-    )
-    config.addinivalue_line(
-        "markers", "performance: mark test as a performance test"
-    )
-    config.addinivalue_line(
-        "markers", "slow: mark test as slow running"
-    )
+    config.addinivalue_line("markers", "unit: mark test as a unit test")
+    config.addinivalue_line("markers", "integration: mark test as an integration test")
+    config.addinivalue_line("markers", "performance: mark test as a performance test")
+    config.addinivalue_line("markers", "slow: mark test as slow running")
 
 
 # Custom assertions and utilities
 class TestHelpers:
     """Helper methods for testing."""
-    
+
     @staticmethod
     def assert_valid_timestamp(timestamp_str: str):
         """Assert that a timestamp string is valid ISO format."""
         from datetime import datetime
+
         try:
-            datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
         except ValueError:
             pytest.fail(f"Invalid timestamp format: {timestamp_str}")
-    
+
     @staticmethod
     def assert_valid_price(price: float):
         """Assert that a price is valid (positive number)."""
-        assert isinstance(price, (int, float)), "Price must be a number"
+        assert isinstance(price, int | float), "Price must be a number"
         assert price > 0, "Price must be positive"
-    
+
     @staticmethod
     def assert_valid_volume(volume: float):
         """Assert that a volume is valid (non-negative number)."""
-        assert isinstance(volume, (int, float)), "Volume must be a number"
+        assert isinstance(volume, int | float), "Volume must be a number"
         assert volume >= 0, "Volume must be non-negative"
 
 

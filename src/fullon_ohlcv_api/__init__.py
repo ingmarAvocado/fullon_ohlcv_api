@@ -7,18 +7,20 @@ designed for integration into master_api alongside other fullon libraries.
 Usage:
     # Library mode (for master_api composition)
     from fullon_ohlcv_api import FullonOhlcvGateway, get_all_routers
-    
+
     # Standalone mode (for testing)
     python -m fullon_ohlcv_api.standalone_server
 """
 
+from fastapi.routing import APIRouter
+
 from .gateway import FullonOhlcvGateway
 
 
-def get_all_routers():
+def get_all_routers() -> list[APIRouter]:
     """
     Get all routers for master_api composition.
-    
+
     Returns:
         List[APIRouter]: All OHLCV API routers for external composition
     """
