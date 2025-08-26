@@ -308,10 +308,108 @@ open http://localhost:8000/redoc   # ReDoc interface
 
 ## 📖 Key References
 
-- **OHLCV Operations**: See fullon_ohlcv documentation for all available methods
+### **fullon_ohlcv Library Core Documentation**
+- **Installation**: `poetry add git+ssh://git@github.com/ingmarAvocado/fullon_ohlcv.git`
+- **LLM Quickstart**: `docs/FULLON_OHLCV_LLM_QUICKSTART.md` - Complete usage examples
+- **Method Reference**: `docs/FULLON_OHLCV_METHOD_REFERENCE.md` - All available repository methods
+
+### **fullon_ohlcv Repository Methods (READ-ONLY)**
+```python
+# TradeRepository - Core time-series trade operations
+from fullon_ohlcv.repositories.ohlcv import TradeRepository
+
+async with TradeRepository("binance", "BTC/USDT", test=True) as repo:
+    # Data retrieval (READ-ONLY)
+    trades = await repo.get_recent_trades(limit=100)
+    historical = await repo.get_trades_in_range(start_time, end_time, limit=10)
+    
+    # Timestamp queries
+    oldest = await repo.get_oldest_timestamp()
+    latest = await repo.get_latest_timestamp()
+
+# CandleRepository - OHLCV candle data operations  
+from fullon_ohlcv.repositories.ohlcv import CandleRepository
+
+async with CandleRepository("binance", "ETH/USDT", test=True) as repo:
+    # Candle data retrieval (READ-ONLY)
+    candles = await repo.get_candles_in_range(start_time, end_time)
+    
+    # Timestamp queries
+    oldest = await repo.get_oldest_timestamp()
+    latest = await repo.get_latest_timestamp()
+
+# TimeseriesRepository - OHLCV aggregation from trade data
+from fullon_ohlcv.repositories.ohlcv import TimeseriesRepository
+
+async with TimeseriesRepository("binance", "BTC/USDT", test=True) as repo:
+    # Generate OHLCV from existing trades (READ-ONLY)
+    ohlcv_data = await repo.fetch_ohlcv(
+        start_time=start_time,
+        end_time=end_time,
+        timeframe="1m",  # "1m", "5m", "1h", "1d", etc.
+        limit=10
+    )
+    
+    # Timestamp queries
+    oldest = await repo.get_oldest_timestamp()
+    latest = await repo.get_latest_timestamp()
+```
+
+### **fullon_ohlcv Data Models**
+```python
+from fullon_ohlcv.models import Trade, Candle
+
+# Trade model structure
+Trade(
+    timestamp=datetime.now(timezone.utc),  # Always UTC
+    price=50000.0,
+    volume=0.1,
+    side="BUY",      # "BUY" or "SELL"
+    type="MARKET"    # "MARKET" or "LIMIT"
+)
+
+# Candle model structure  
+Candle(
+    timestamp=datetime.now(timezone.utc),  # Always UTC
+    open=3000.0,
+    high=3010.0,
+    low=2995.0,
+    close=3005.0,
+    vol=150.5
+)
+```
+
+### **fullon_ohlcv Performance Optimization**
+```python
+# Always use uvloop for better async performance
+from fullon_ohlcv.utils import install_uvloop
+
+def main():
+    install_uvloop()  # Call before asyncio.run() for performance boost
+    asyncio.run(your_async_function())
+```
+
+### **Database Schema Pattern (fullon_ohlcv)**
+- **TradeRepository("binance", "BTC/USDT")** creates:
+  - Schema: `binance`
+  - Table: `binance.BTC_USDT_trades` 
+  - TimescaleDB hypertable for time-series performance
+- **CandleRepository("binance", "ETH/USDT")** creates:
+  - Schema: `binance`
+  - Table: `binance.ETH_USDT_candles`
+  - TimescaleDB hypertable optimization
+
+### **Critical fullon_ohlcv Integration Points**
+1. **Context Manager Pattern**: Always use `async with Repository(...) as repo:` 
+2. **Test Mode**: Use `test=True` parameter to avoid production data contamination
+3. **UTC Timestamps**: All datetime objects must be timezone-aware UTC
+4. **Async Operations**: Every repository operation is asynchronous
+5. **Performance**: Call `install_uvloop()` before `asyncio.run()` for optimal performance
+
+### **Project References**
 - **Examples**: Working code in `examples/` directory
 - **Tests**: Pattern examples in `tests/conftest.py`
-- **fullon_ohlcv Guide**: Refer to dependency documentation
+- **Project Structure**: `docs/PROJECT_STRUCTURE.md` - Complete architecture guide
 
 ## ⚠️ Critical Rules
 
