@@ -8,6 +8,8 @@ fullon_ohlcv_api is a composable FastAPI gateway library that exposes **read-onl
 
 **🔍 READ-ONLY API**: This library **only** exposes data retrieval operations. No updates, inserts, or write operations are in scope.
 
+**📚 EXAMPLES-DRIVEN**: Our `examples/` folder defines the API specification. The examples are working demonstrations that show exactly what endpoints the API must implement and how they should behave.
+
 ## 🏗️ Architecture Principles
 
 ### LRRS Compliance
@@ -28,6 +30,15 @@ fullon_ohlcv_api is a composable FastAPI gateway library that exposes **read-onl
 
 ```
 fullon_ohlcv_api/
+├── examples/                   # 📚 LIVING API SPECIFICATION
+│   ├── trade_repository_example.py      # 💹 Trade endpoints specification
+│   ├── candle_repository_example.py     # 🕯️ Candle/OHLCV endpoints specification
+│   ├── timeseries_repository_example.py # ⏰ Timeseries OHLCV aggregation specification
+│   ├── websocket_live_ohlcv_example.py  # 📡 Real-time WebSocket streaming specification
+│   ├── run_all.py                       # 🧪 Integration testing infrastructure
+│   ├── README.md                        # 📖 Examples usage and API overview
+│   └── API_SPECIFICATION.md             # 📋 Formal API specification from examples
+│
 ├── CLAUDE.md                    # 🤖 Development guidelines for LLMs
 ├── PROJECT_STRUCTURE.md         # 📋 This architecture documentation
 ├── README.md                    # 📖 Project overview and usage guide
@@ -48,19 +59,17 @@ fullon_ohlcv_api/
 │       │
 │       ├── models/            # 📋 Pydantic data models
 │       │   ├── __init__.py
-│       │   ├── requests.py     # 📥 API request models
-│       │   └── responses.py    # 📤 API response models
+│       │   ├── requests.py     # 📥 API request models (from examples)
+│       │   └── responses.py    # 📤 API response models (from examples)
 │       │
-│       └── routers/           # 🛣️ FastAPI endpoint routers
+│       └── routers/           # 🛣️ FastAPI endpoint routers (implement examples)
 │           ├── __init__.py
-│           ├── trades.py       # 💹 Trade data endpoints
-│           ├── candles.py      # 🕯️ Candle/OHLCV data endpoints
+│           ├── trades.py       # 💹 Trade endpoints (→ trade_repository_example.py)
+│           ├── candles.py      # 🕯️ Candle endpoints (→ candle_repository_example.py)
+│           ├── timeseries.py   # ⏰ Timeseries endpoints (→ timeseries_repository_example.py)
+│           ├── websocket.py    # 📡 WebSocket streaming (→ websocket_live_ohlcv_example.py)
 │           ├── exchanges.py    # 🏢 Exchange catalog endpoints
 │           └── symbols.py      # 🔤 Symbol catalog endpoints
-│
-├── examples/                  # 📚 Working code examples
-│   ├── basic_usage.py         # 🚀 Simple OHLCV API usage
-│   └── library_usage.py       # 🏗️ Master API composition patterns
 │
 ├── tests/                     # 🧪 Comprehensive test suite
 │   ├── __init__.py
@@ -72,8 +81,21 @@ fullon_ohlcv_api/
 │       └── __init__.py
 │
 └── docs/                      # 📖 Additional documentation
-    └── (additional docs)
+    ├── PROJECT_STRUCTURE.md   # 📋 This file - architecture overview
+    ├── FULLON_OHLCV_LLM_QUICKSTART.md    # 🚀 fullon_ohlcv usage guide
+    └── FULLON_OHLCV_METHOD_REFERENCE.md  # 📚 fullon_ohlcv method reference
 ```
+
+## 📚 Examples as API Specification
+
+**CRITICAL CONCEPT**: The `examples/` directory is not just documentation - it's the authoritative specification for what the API must do.
+
+### **Examples Define Implementation Requirements**
+- `trade_repository_example.py` → Must implement trade endpoints
+- `candle_repository_example.py` → Must implement candle endpoints  
+- `timeseries_repository_example.py` → Must implement timeseries aggregation endpoints
+- `websocket_live_ohlcv_example.py` → Must implement WebSocket streaming
+- `run_all.py` → Defines integration testing infrastructure requirements
 
 ## 🔌 Library Interface
 
@@ -127,30 +149,38 @@ class FullonOhlcvGateway:
         pass
 ```
 
-### 2. Router Architecture (`routers/`)
-**Modular endpoint organization by OHLCV operation type.**
+### 2. Router Architecture (`routers/`) - **Implements Examples**
+**Modular endpoint organization defined by examples specifications.**
 
-#### Trade Data Router (`trades.py`) - **READ-ONLY**
+#### Trade Data Router (`trades.py`) - **Implements `trade_repository_example.py`**
 - `GET /{exchange}/{symbol}/trades` - Recent trade data
-- `GET /{exchange}/{symbol}/trades/range` - Historical trade data
-- `GET /{exchange}/{symbol}/trades/stats` - Trade statistics
-- `GET /{exchange}/{symbol}/trades/export` - Data export functionality
+- `GET /{exchange}/{symbol}/trades/range` - Historical trade data  
+- Parameters: `limit`, `start_time`, `end_time` (from example)
+- Response: JSON with trades array and metadata
 
-#### Candle Data Router (`candles.py`) - **READ-ONLY**
+#### Candle Data Router (`candles.py`) - **Implements `candle_repository_example.py`**
 - `GET /{exchange}/{symbol}/candles/{timeframe}` - OHLCV candle data
 - `GET /{exchange}/{symbol}/candles/{timeframe}/range` - Historical candles
-- `GET /{exchange}/{symbol}/ohlcv` - Latest OHLCV summary
-- `GET /{exchange}/{symbol}/candles/analysis` - Candle analysis
+- Parameters: `limit`, `start_time`, `end_time` (from example)
+- Response: JSON with candles array and metadata
+
+#### Timeseries Router (`timeseries.py`) - **Implements `timeseries_repository_example.py`**
+- `GET /{exchange}/{symbol}/ohlcv` - OHLCV aggregation from trade data
+- Parameters: `timeframe`, `start_time`, `end_time`, `limit` (from example)
+- Response: JSON with aggregated OHLCV data
+
+#### WebSocket Router (`websocket.py`) - **Implements `websocket_live_ohlcv_example.py`**
+- `WS /ws/ohlcv` - Real-time OHLCV streaming
+- Subscription format: `{"action": "subscribe", "exchange": "...", "symbol": "...", "timeframe": "...", "type": "ohlcv_live"}`
+- Updates: Real-time OHLCV data with `is_final` flag
 
 #### Exchange Catalog Router (`exchanges.py`)
 - `GET /exchanges` - Available exchanges list
 - `GET /exchanges/{exchange}/info` - Exchange information
-- `GET /exchanges/{exchange}/status` - Exchange connectivity status
 
-#### Symbol Catalog Router (`symbols.py`)
-- `GET /{exchange}/symbols` - Available symbols for exchange  
+#### Symbol Catalog Router (`symbols.py`) 
+- `GET /{exchange}/symbols` - Available symbols for exchange
 - `GET /{exchange}/{symbol}/info` - Symbol metadata
-- `GET /symbols/search` - Symbol search functionality
 
 ### 3. Data Models (`models/`)
 **Pydantic models for request/response validation and OpenAPI documentation.**
@@ -243,11 +273,35 @@ async with CandleRepository("binance", "ETH/USDT") as repo:
 - **Efficient Range Queries**: Optimized for time-based data retrieval
 - **Bulk Operations**: Batch processing for high-volume data import
 
-## 🧪 Testing Architecture
+## 🧪 Examples-Driven Testing Architecture
+
+### **Primary Testing Strategy: Examples as Integration Tests**
+
+**`examples/run_all.py` - Complete Testing Infrastructure**:
+1. **Setup test database** with sample OHLCV data using fullon_ohlcv repositories
+2. **Start API server** in test mode with isolated test database
+3. **Run examples** as integration tests against live API endpoints
+4. **Validate results** - all examples must work successfully
+5. **Cleanup** - stop server, cleanup test data
+
+```bash
+# Examples-driven testing commands
+python examples/run_all.py                          # All examples integration test
+python examples/run_all.py --example trade_repository_example.py  # Individual endpoint test
+python examples/run_all.py --setup-only            # Development testing environment
+python examples/run_all.py --list                  # Show available example tests
+```
 
 ### Test Organization
 ```
-tests/
+examples/                    # 📚 PRIMARY TESTING - Living API specification
+├── run_all.py              # Complete integration testing infrastructure
+├── trade_repository_example.py    # Trade endpoints integration test
+├── candle_repository_example.py   # Candle endpoints integration test
+├── timeseries_repository_example.py # Timeseries endpoints integration test
+└── websocket_live_ohlcv_example.py  # WebSocket streaming integration test
+
+tests/                       # 🔬 SECONDARY TESTING - Traditional unit tests
 ├── conftest.py              # Shared fixtures and configuration
 ├── test_main.py             # Integration tests for main components
 ├── unit/                    # Isolated component testing
@@ -259,11 +313,12 @@ tests/
     └── test_repository_integration.py # fullon_ohlcv integration tests
 ```
 
-### Test-Driven Development (TDD)
-- **Tests First**: Write tests before implementation
-- **100% Coverage**: All code must have test coverage
-- **`./run_test.py`**: Comprehensive test runner (must pass before commits)
-- **Async Testing**: All tests use pytest-asyncio for async operations
+### Examples-Driven Development (EDD)
+- **Examples First**: Examples define what API must implement
+- **Examples as Tests**: Examples validate that implementation works
+- **Integration Focus**: Complete workflows tested through examples
+- **`examples/run_all.py`**: Primary test runner (must pass before commits)
+- **Traditional TDD**: Secondary validation through unit tests
 
 ## 🚀 Development Workflow
 
