@@ -7,3 +7,7 @@ This package contains all API endpoint routers organized by functionality:
 - exchanges: Exchange catalog operations
 - symbols: Symbol catalog operations
 """
+
+from .trades import router as trades_router
+
+__all__ = ["trades_router"]
