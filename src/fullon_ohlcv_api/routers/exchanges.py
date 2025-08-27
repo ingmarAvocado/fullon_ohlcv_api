@@ -103,7 +103,7 @@ async def get_exchanges(
 
             exchanges.append(exchange_info)
 
-        logger.info(f"Discovered {len(exchanges)} exchanges", count=len(exchanges))
+        logger.info("Discovered exchanges via schema introspection", count=len(exchanges))
 
         return {
             "success": True,

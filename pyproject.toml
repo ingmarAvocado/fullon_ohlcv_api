@@ -10,7 +10,8 @@ dependencies = [
     "uvicorn[standard]>=0.24.0",
     "httpx>=0.25.2",
     "python-dotenv>=1.0.0",
-    "fullon_ohlcv @ git+ssh://git@github.com/ingmarAvocado/fullon_ohlcv.git"
+    "fullon_ohlcv @ git+ssh://git@github.com/ingmarAvocado/fullon_ohlcv.git",
+    "fullon_log @ git+ssh://git@github.com/ingmarAvocado/fullon_log.git"
 ]
 
 [tool.poetry]

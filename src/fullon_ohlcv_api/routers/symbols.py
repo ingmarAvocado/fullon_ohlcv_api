@@ -86,7 +86,7 @@ def extract_symbol_from_table_name(table_name: str) -> Optional[str]:
         return f"{base.upper()}/{quote.upper()}"
 
     except Exception:
-        logger.debug(f"Failed to extract symbol from table name: {table_name}")
+        logger.debug("Failed to extract symbol from table name", table_name=table_name)
         return None
 
 
