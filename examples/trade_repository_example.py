@@ -5,11 +5,13 @@ Trade Repository Example - fullon_ohlcv_api
 Demonstrates trade data retrieval via API, mirroring fullon_ohlcv TradeRepository patterns.
 """
 
-import asyncio
+import json
 import os
 from datetime import UTC, datetime, timedelta
+from urllib.request import urlopen, Request
+from urllib.parse import urlencode
+from urllib.error import HTTPError
 
-import aiohttp
 from dotenv import load_dotenv
 
 try:
@@ -20,7 +22,7 @@ except ImportError:
         pass
 
 
-async def main():
+def main():
     """Trade repository API example."""
     load_dotenv()
 
@@ -31,54 +33,57 @@ async def main():
     print("💹 Trade Repository API Example")
     print(f"API URL: {base_url}")
 
-    async with aiohttp.ClientSession() as session:
-        exchange = "binance"
-        symbol = "BTC/USDT"
+    exchange = "binance"
+    symbol = "BTCUSDT"
 
-        # Get recent trades
-        try:
-            url = f"{base_url}/api/trades/{exchange}/{symbol}"
-            params = {"limit": 10}
+    # Get recent trades
+    try:
+        params = urlencode({"limit": 10})
+        url = f"{base_url}/api/trades/{exchange}/{symbol}?{params}"
+        
+        with urlopen(url, timeout=10) as response:
+            if response.getcode() == 200:
+                data = json.loads(response.read().decode())
+                trades = data.get("trades", [])
+                print(f"✅ Retrieved {len(trades)} recent trades")
 
-            async with session.get(url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    trades = data.get("trades", [])
-                    print(f"✅ Retrieved {len(trades)} recent trades")
+                for i, trade in enumerate(trades[:3]):
+                    print(
+                        f"  Trade {i+1}: ${trade.get('price')} vol:{trade.get('volume')} {trade.get('side')}"
+                    )
+            else:
+                print(f"⚠️  API returned status {response.getcode()}")
 
-                    for i, trade in enumerate(trades[:3]):
-                        print(
-                            f"  Trade {i+1}: ${trade.get('price')} vol:{trade.get('volume')} {trade.get('side')}"
-                        )
-                else:
-                    print(f"⚠️  API returned status {response.status}")
+    except HTTPError as e:
+        print(f"⚠️  HTTP Error: {e.code} {e.reason}")
+    except Exception as e:
+        print(f"⚠️  Failed to get trades: {e}")
 
-        except Exception as e:
-            print(f"⚠️  Failed to get trades: {e}")
+    # Get trades in range
+    try:
+        end_time = datetime.now(UTC)
+        start_time = end_time - timedelta(hours=1)
 
-        # Get trades in range
-        try:
-            url = f"{base_url}/api/trades/{exchange}/{symbol}/range"
-            end_time = datetime.now(UTC)
-            start_time = end_time - timedelta(hours=1)
+        params = urlencode({
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+        })
+        url = f"{base_url}/api/trades/{exchange}/{symbol}/range?{params}"
 
-            params = {
-                "start_time": start_time.isoformat(),
-                "end_time": end_time.isoformat(),
-            }
+        with urlopen(url, timeout=10) as response:
+            if response.getcode() == 200:
+                data = json.loads(response.read().decode())
+                trades = data.get("trades", [])
+                print(f"✅ Retrieved {len(trades)} trades in 1h range")
+            else:
+                print(f"⚠️  Range query returned status {response.getcode()}")
 
-            async with session.get(url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    trades = data.get("trades", [])
-                    print(f"✅ Retrieved {len(trades)} trades in 1h range")
-                else:
-                    print(f"⚠️  Range query returned status {response.status}")
-
-        except Exception as e:
-            print(f"⚠️  Failed to get trade range: {e}")
+    except HTTPError as e:
+        print(f"⚠️  HTTP Error: {e.code} {e.reason}")
+    except Exception as e:
+        print(f"⚠️  Failed to get trade range: {e}")
 
 
 if __name__ == "__main__":
     install_uvloop()
-    asyncio.run(main())
+    main()
