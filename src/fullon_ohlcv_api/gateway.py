@@ -10,14 +10,9 @@ from typing import Optional
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-try:
-    from fullon_log import get_component_logger
+from fullon_log import get_component_logger
 
-    logger = get_component_logger("fullon.api.ohlcv")
-except ImportError:
-    import logging
-
-    logger = logging.getLogger("fullon.api.ohlcv")
+logger = get_component_logger("fullon.api.ohlcv")
 
 
 class FullonOhlcvGateway:

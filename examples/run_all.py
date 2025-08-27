@@ -24,15 +24,9 @@ except ImportError:
     print("❌ fullon_ohlcv not available - cannot run examples")
     sys.exit(1)
 
-try:
-    from fullon_log import get_component_logger
+from fullon_log import get_component_logger
 
-    logger = get_component_logger("fullon.examples.run_all")
-except ImportError:
-    import logging
-
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger("fullon.examples.run_all")
+logger = get_component_logger("fullon.examples.run_all")
 
 
 class ExampleTestRunner:
