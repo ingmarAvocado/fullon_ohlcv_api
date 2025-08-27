@@ -8,6 +8,7 @@ This package contains all API endpoint routers organized by functionality:
 - symbols: Symbol catalog operations
 """
 
+from .candles import router as candles_router
 from .trades import router as trades_router
 
-__all__ = ["trades_router"]
+__all__ = ["trades_router", "candles_router"]

@@ -127,8 +127,14 @@ class FullonOhlcvGateway:
             }
 
         # Add implemented routers
-        from .routers import trades_router
-        app.include_router(trades_router, prefix=f"{self.prefix}/api/trades", tags=["trades"])
+        from .routers import candles_router, trades_router
+
+        app.include_router(
+            trades_router, prefix=f"{self.prefix}/api/trades", tags=["trades"]
+        )
+        app.include_router(
+            candles_router, prefix=f"{self.prefix}/api/candles", tags=["candles"]
+        )
 
     def _add_event_handlers(self, app: FastAPI) -> None:
         """Add event handlers to the application."""
@@ -158,10 +164,14 @@ class FullonOhlcvGateway:
         routers = []
 
         # Return implemented routers
-        from .routers import trades_router
-        routers.extend([
-            trades_router,
-        ])
+        from .routers import candles_router, trades_router
+
+        routers.extend(
+            [
+                trades_router,
+                candles_router,
+            ]
+        )
 
         logger.debug("Returning routers for composition", count=len(routers))
         return routers
