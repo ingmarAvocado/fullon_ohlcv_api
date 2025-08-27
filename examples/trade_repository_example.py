@@ -8,9 +8,9 @@ Demonstrates trade data retrieval via API, mirroring fullon_ohlcv TradeRepositor
 import json
 import os
 from datetime import UTC, datetime, timedelta
-from urllib.request import urlopen, Request
-from urllib.parse import urlencode
 from urllib.error import HTTPError
+from urllib.parse import urlencode
+from urllib.request import urlopen
 
 from dotenv import load_dotenv
 
@@ -40,7 +40,7 @@ def main():
     try:
         params = urlencode({"limit": 10})
         url = f"{base_url}/api/trades/{exchange}/{symbol}?{params}"
-        
+
         with urlopen(url, timeout=10) as response:
             if response.getcode() == 200:
                 data = json.loads(response.read().decode())
@@ -64,10 +64,12 @@ def main():
         end_time = datetime.now(UTC)
         start_time = end_time - timedelta(hours=1)
 
-        params = urlencode({
-            "start_time": start_time.isoformat(),
-            "end_time": end_time.isoformat(),
-        })
+        params = urlencode(
+            {
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+            }
+        )
         url = f"{base_url}/api/trades/{exchange}/{symbol}/range?{params}"
 
         with urlopen(url, timeout=10) as response:
