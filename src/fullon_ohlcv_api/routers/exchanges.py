@@ -12,7 +12,7 @@ Endpoints:
 """
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path
 from fullon_log import get_component_logger
@@ -65,7 +65,7 @@ def format_exchange_display_name(exchange: str) -> str:
 @router.get("/exchanges")
 async def get_exchanges(
     connection=Depends(get_database_connection),
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     List all available exchanges via database schema introspection.
 
@@ -83,8 +83,8 @@ async def get_exchanges(
 
         # Query for all non-system schemas
         query = """
-        SELECT schema_name
-        FROM information_schema.schemata
+        SELECT schema_name 
+        FROM information_schema.schemata 
         WHERE schema_name NOT IN ('information_schema', 'pg_catalog', 'public', 'pg_toast')
         ORDER BY schema_name
         """
@@ -125,7 +125,7 @@ async def get_exchanges(
 async def get_exchange_info(
     exchange: str = Path(..., description="Exchange name"),
     connection=Depends(get_database_connection),
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Get detailed information about a specific exchange.
 
@@ -149,7 +149,7 @@ async def get_exchange_info(
         # Check if exchange schema exists
         check_query = """
         SELECT EXISTS(
-            SELECT 1 FROM information_schema.schemata
+            SELECT 1 FROM information_schema.schemata 
             WHERE schema_name = $1
         ) as exists
         """
@@ -165,7 +165,7 @@ async def get_exchange_info(
         # Get symbol count (number of tables in the schema)
         symbol_count_query = """
         SELECT COUNT(*) as table_count
-        FROM information_schema.tables
+        FROM information_schema.tables 
         WHERE table_schema = $1 AND table_type = 'BASE TABLE'
         """
 
@@ -179,7 +179,7 @@ async def get_exchange_info(
             SELECT MAX(timestamp) as last_updated
             FROM "{exchange_name}"."{exchange_name.upper()}_USDT_trades"
             UNION ALL
-            SELECT MAX(timestamp) as last_updated
+            SELECT MAX(timestamp) as last_updated  
             FROM "{exchange_name}"."{exchange_name.upper()}_BTC_trades"
         ) t
         """
@@ -232,7 +232,7 @@ async def get_exchange_info(
 async def get_exchange_status(
     exchange: str = Path(..., description="Exchange name"),
     connection=Depends(get_database_connection),
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Get health and status information for a specific exchange.
 
@@ -256,7 +256,7 @@ async def get_exchange_status(
         # Check if exchange exists
         check_query = """
         SELECT EXISTS(
-            SELECT 1 FROM information_schema.schemata
+            SELECT 1 FROM information_schema.schemata 
             WHERE schema_name = $1
         ) as exists
         """
@@ -376,7 +376,7 @@ async def get_exchange_status(
 async def validate_exchange(
     exchange: str = Path(..., description="Exchange name to validate"),
     connection=Depends(get_database_connection),
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Validate if an exchange exists and is accessible.
 
@@ -400,7 +400,7 @@ async def validate_exchange(
         # Check if exchange schema exists
         check_query = """
         SELECT EXISTS(
-            SELECT 1 FROM information_schema.schemata
+            SELECT 1 FROM information_schema.schemata 
             WHERE schema_name = $1
         ) as exists
         """
