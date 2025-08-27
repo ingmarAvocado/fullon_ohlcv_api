@@ -9,6 +9,7 @@ This package contains all API endpoint routers organized by functionality:
 """
 
 from .candles import router as candles_router
+from .exchanges import router as exchanges_router
 from .trades import router as trades_router
 
-__all__ = ["trades_router", "candles_router"]
+__all__ = ["trades_router", "candles_router", "exchanges_router"]
