@@ -258,13 +258,13 @@ async def get_timeseries_repository(
 async def get_database_connection():
     """
     Get database connection for schema introspection.
-    
+
     Creates a temporary TradeRepository connection to access the database
     for exchange discovery operations.
-    
+
     Returns:
         Database connection object
-        
+
     Raises:
         HTTPException: 500 status code for connection errors
     """
@@ -273,13 +273,13 @@ async def get_database_connection():
         # We use a dummy exchange/symbol since we only need the connection
         repo = TradeRepository("dummy", "dummy", test=True)
         await repo.__aenter__()
-        
+
         # Access the underlying connection through the repository
         connection = repo._connection
-        
+
         logger.debug("Database connection established for schema introspection")
         return connection
-        
+
     except Exception as e:
         logger.error("Failed to establish database connection", error=str(e))
         raise HTTPException(

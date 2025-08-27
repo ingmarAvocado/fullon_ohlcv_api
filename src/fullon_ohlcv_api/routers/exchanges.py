@@ -6,7 +6,7 @@ available exchanges through database schema introspection.
 
 Endpoints:
 - GET /exchanges - List all available exchanges
-- GET /exchanges/{exchange}/info - Get detailed exchange information  
+- GET /exchanges/{exchange}/info - Get detailed exchange information
 - GET /exchanges/{exchange}/status - Get exchange status and health
 - GET /exchanges/{exchange}/validate - Validate exchange existence
 """
@@ -22,7 +22,6 @@ from ..dependencies.database import get_database_connection
 logger = get_component_logger("fullon.api.ohlcv.exchanges")
 
 router = APIRouter()
-
 
 
 def normalize_exchange_name(exchange: str) -> str:
