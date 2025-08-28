@@ -7,12 +7,10 @@ specification defined by websocket_live_ohlcv_example.py.
 
 import json
 from datetime import UTC, datetime
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fullon_log import get_component_logger
-
-from ..models.responses import WebSocketUpdate
 
 logger = get_component_logger("fullon.api.ohlcv.websocket")
 
@@ -163,7 +161,7 @@ async def websocket_ohlcv_endpoint(websocket: WebSocket):
         logger.info("WebSocket client disconnected normally")
 
 
-async def handle_websocket_message(websocket: WebSocket, message: Dict[str, Any]):
+async def handle_websocket_message(websocket: WebSocket, message: dict[str, Any]):
     """Handle incoming WebSocket message."""
     action = message.get("action")
 
@@ -180,7 +178,7 @@ async def handle_websocket_message(websocket: WebSocket, message: Dict[str, Any]
         await manager.send_personal_message(json.dumps(error_response), websocket)
 
 
-async def handle_subscribe(websocket: WebSocket, message: Dict[str, Any]):
+async def handle_subscribe(websocket: WebSocket, message: dict[str, Any]):
     """Handle subscription request."""
     try:
         exchange = message.get("exchange")
@@ -235,7 +233,7 @@ async def handle_subscribe(websocket: WebSocket, message: Dict[str, Any]):
         await manager.send_personal_message(json.dumps(error_response), websocket)
 
 
-async def handle_unsubscribe(websocket: WebSocket, message: Dict[str, Any]):
+async def handle_unsubscribe(websocket: WebSocket, message: dict[str, Any]):
     """Handle unsubscription request."""
     try:
         exchange = message.get("exchange")
