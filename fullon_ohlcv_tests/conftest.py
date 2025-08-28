@@ -1,9 +1,8 @@
 """
-Test configuration and fixtures for fullon_ohlcv_api tests.
+Test configuration and fixtures.
 
-This module provides test fixtures and configuration for parallel test execution
-using real test databases instead of mocking. Each test file gets its own database
-to enable safe parallel execution.
+This module provides test fixtures and configuration for parallel test execution.
+Each test file gets its own database to enable safe parallel execution.
 """
 
 import os
@@ -11,16 +10,11 @@ import pytest
 import pytest_asyncio
 import asyncio
 import uuid
-from collections.abc import AsyncGenerator, Generator
-from typing import Dict, Optional
+from typing import AsyncGenerator, Dict, Optional
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy import text
+import redis
 
-from fastapi.testclient import TestClient
-from httpx import AsyncClient
-from fullon_ohlcv_api import FullonOhlcvGateway
-
-# Import fullon_ohlcv dependencies
 from fullon_ohlcv.utils.config import config
 from fullon_ohlcv.utils.logger import get_logger
 
@@ -34,7 +28,7 @@ def get_test_db_name(request) -> str:
     """
     Generate a unique test database name for each test file.
     
-    Format: fullon_api_test_{test_file}_{random_suffix}
+    Format: fullon_test_{test_file}_{random_suffix}
     """
     # Get the test file name without extension
     test_file = os.path.basename(request.node.fspath).replace('.py', '')
@@ -43,7 +37,7 @@ def get_test_db_name(request) -> str:
     unique_suffix = str(uuid.uuid4())[:8]
     
     # Create database name
-    db_name = f"fullon_api_test_{test_file}_{unique_suffix}"
+    db_name = f"fullon_test_{test_file}_{unique_suffix}"
     
     # Store for cleanup
     _test_databases[request.node.nodeid] = db_name
@@ -141,13 +135,15 @@ def event_loop_policy():
     return asyncio.get_event_loop_policy()
 
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create an event loop for the test session with uvloop if available."""
+@pytest.fixture(scope="module")
+def event_loop(request):
+    """Create an event loop for the test module with uvloop if available."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     yield loop
     loop.close()
+
+
 
 
 class TestConfig:
@@ -196,6 +192,35 @@ async def test_db(test_db_name: str) -> AsyncGenerator[Dict, None]:
     finally:
         # Cleanup
         await drop_test_database(test_db_name)
+
+
+@pytest_asyncio.fixture
+async def db_session(test_db: Dict) -> AsyncGenerator[AsyncSession, None]:
+    """Create a new async database session for a test."""
+    db_url = (
+        f"postgresql+asyncpg://{test_db['user']}:{test_db['password']}@"
+        f"{test_db['host']}:{test_db['port']}/{test_db['database']}"
+    )
+    
+    engine = create_async_engine(db_url, pool_pre_ping=True)
+    
+    session_factory = async_sessionmaker(
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False
+    )
+    
+    async with session_factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+    
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="module")
@@ -270,6 +295,23 @@ def anyio_backend():
     return "asyncio"
 
 
+# Configure pytest-asyncio
+pytest_plugins = ("pytest_asyncio",)
+
+
+def pytest_configure(config):
+    """Configure pytest with custom markers."""
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+    )
+    config.addinivalue_line(
+        "markers", "integration: marks tests as integration tests"
+    )
+    config.addinivalue_line(
+        "markers", "unit: marks tests as unit tests"
+    )
+
+
 @pytest.fixture(autouse=True)
 def reset_sqlalchemy_models():
     """
@@ -294,68 +336,106 @@ def reset_sqlalchemy_models():
     Candle._symbol = None
 
 
-# FastAPI Gateway fixtures adapted for database testing
-@pytest.fixture
-def gateway() -> FullonOhlcvGateway:
-    """Create a FullonOhlcvGateway instance for testing."""
-    return FullonOhlcvGateway(
-        title="Test OHLCV API",
-        description="Test instance of fullon_ohlcv_api with real database support",
-        version="0.1.0-test",
-    )
-
-
-@pytest.fixture
-def app(gateway):
-    """Create a FastAPI app instance for testing."""
-    return gateway.get_app()
-
-
-@pytest.fixture
-def client(app) -> TestClient:
-    """Create a test client for synchronous testing."""
-    return TestClient(app)
-
-
-@pytest.fixture
-async def async_client(app) -> AsyncGenerator[AsyncClient, None]:
-    """Create an async test client for asynchronous testing."""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        yield ac
-
-
-# Configure pytest-asyncio
-pytest_plugins = ("pytest_asyncio",)
-
-
-def pytest_configure(config):
-    """Configure pytest with custom markers."""
-    config.addinivalue_line(
-        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
-    )
-    config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests"
-    )
-    config.addinivalue_line(
-        "markers", "unit: marks tests as unit tests"
-    )
-    config.addinivalue_line(
-        "markers", "api: marks tests as API endpoint tests"
-    )
-
-
-# Patch config for repository test support
-@pytest_asyncio.fixture
-async def config_with_test_db(test_db: Dict, monkeypatch):
+def get_redis_db_for_worker(worker_id: str) -> int:
     """
-    Patch fullon_ohlcv config to use our test database.
+    Get a Redis database number based on worker ID.
     
-    This ensures all repository instances use the test database.
+    Args:
+        worker_id: pytest-xdist worker ID (e.g., 'gw0', 'gw1', 'master')
+        
+    Returns:
+        Redis database number (1-15 for tests, 0 reserved for production)
     """
-    # Patch the config
-    monkeypatch.setattr(config.database, 'test_name', test_db['database'])
-    monkeypatch.setattr(config.database, 'name', test_db['database'])
+    if worker_id == "master":
+        # Running without pytest-xdist
+        return 1
+    
+    # Extract worker number from ID like 'gw0', 'gw1', etc.
+    try:
+        worker_num = int(worker_id[2:])
+        # Use databases 1-15 for testing (0 is reserved for production)
+        return (worker_num % 15) + 1
+    except (ValueError, IndexError):
+        # Fallback to database 1
+        return 1
+
+
+@pytest.fixture(scope="session")
+def redis_test_db(worker_id) -> int:
+    """
+    Get Redis database number for this test worker.
+    
+    Returns:
+        Redis database number for isolation
+    """
+    return get_redis_db_for_worker(worker_id)
+
+
+@pytest_asyncio.fixture
+async def redis_cache_db(redis_test_db: int) -> AsyncGenerator[int, None]:
+    """
+    Provide a clean Redis database for cache testing.
+    
+    Yields:
+        Redis database number
+    """
+    # Clear the Redis database before use
+    redis_client = redis.from_url(
+        f"redis://{config.redis.host}:{config.redis.port}/{redis_test_db}",
+        decode_responses=True
+    )
+    
+    try:
+        # Clear the database
+        redis_client.flushdb()
+        logger.debug(f"Cleared Redis test database {redis_test_db}")
+        
+        yield redis_test_db
+        
+    finally:
+        # Clear again after test
+        redis_client.flushdb()
+        redis_client.close()
+
+
+@pytest.fixture
+def cache_enabled_config(redis_test_db: int):
+    """
+    Override cache configuration for testing.
+    
+    Returns:
+        Modified config with cache enabled and test Redis DB
+    """
+    # Save original values
+    original_enabled = config.redis.cache_enabled
+    original_db = config.redis.db
+    
+    # Enable cache and set test database
+    config.redis.cache_enabled = True
+    config.redis.db = redis_test_db
     
     yield config
     
-    # Config cleanup is handled by monkeypatch automatically
+    # Restore original values
+    config.redis.cache_enabled = original_enabled
+    config.redis.db = original_db
+
+
+@pytest.fixture
+def cache_disabled_config():
+    """
+    Override cache configuration to disable caching.
+    
+    Returns:
+        Modified config with cache disabled
+    """
+    # Save original value
+    original_enabled = config.redis.cache_enabled
+    
+    # Disable cache
+    config.redis.cache_enabled = False
+    
+    yield config
+    
+    # Restore original value
+    config.redis.cache_enabled = original_enabled
