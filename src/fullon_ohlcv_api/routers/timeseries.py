@@ -6,9 +6,9 @@ specification defined by timeseries_repository_example.py.
 """
 
 from datetime import datetime
+from typing import Optional
 
-import arrow
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fullon_log import get_component_logger
 from fullon_ohlcv.repositories.ohlcv import TimeseriesRepository
 
@@ -34,7 +34,7 @@ async def get_ohlcv_aggregation(
     end_time: datetime = Query(
         ..., description="End time for aggregation range (ISO format)"
     ),
-    limit: int = Query(
+    limit: Optional[int] = Query(
         default=100,
         ge=1,
         le=10000,
@@ -72,67 +72,64 @@ async def get_ohlcv_aggregation(
         limit=limit,
     )
 
-    # Convert datetime to Arrow objects
-    fromdate = arrow.get(start_time)
-    todate = arrow.get(end_time)
-
-    # Map timeframe string to compression and period
-    timeframe_mapping = {
-        "1m": (1, "minute"),
-        "5m": (5, "minute"),
-        "15m": (15, "minute"),
-        "30m": (30, "minute"),
-        "1h": (1, "hour"),
-        "4h": (4, "hour"),
-        "1d": (1, "day"),
-    }
-
-    if timeframe not in timeframe_mapping:
-        from fastapi import HTTPException
-
+    # Validate timeframe
+    supported_timeframes = ["1m", "5m", "15m", "30m", "1h", "4h", "1d"]
+    if timeframe not in supported_timeframes:
         raise HTTPException(
-            status_code=422, detail=f"Unsupported timeframe: {timeframe}"
+            status_code=422,
+            detail=f"Unsupported timeframe: {timeframe}. Supported timeframes: {supported_timeframes}",
         )
 
-    compression, period = timeframe_mapping[timeframe]
+    try:
+        # Generate OHLCV data using fullon_ohlcv TimeseriesRepository
+        ohlcv_data = await repo.fetch_ohlcv(
+            start_time=start_time,
+            end_time=end_time,
+            timeframe=timeframe,
+            limit=limit,
+        )
 
-    # Generate OHLCV data using fullon_ohlcv TimeseriesRepository
-    ohlcv_data = await repo.fetch_ohlcv(
-        compression=compression,
-        period=period,
-        fromdate=fromdate,
-        todate=todate,
-    )
+        # Convert OHLCV candles to dict format for response
+        ohlcv_list = [
+            {
+                "timestamp": candle.timestamp.isoformat(),
+                "open": float(candle.open),
+                "high": float(candle.high),
+                "low": float(candle.low),
+                "close": float(candle.close),
+                "vol": float(candle.vol),
+            }
+            for candle in ohlcv_data
+        ]
 
-    # Convert OHLCV candles to dict format for response
-    ohlcv_list = [
-        {
-            "timestamp": candle.timestamp.isoformat(),
-            "open": float(candle.open),
-            "high": float(candle.high),
-            "low": float(candle.low),
-            "close": float(candle.close),
-            "vol": float(candle.vol),
-        }
-        for candle in ohlcv_data
-    ]
+        logger.info(
+            "Generated OHLCV aggregation",
+            exchange=exchange,
+            symbol=symbol,
+            timeframe=timeframe,
+            count=len(ohlcv_list),
+            start_time=start_time.isoformat(),
+            end_time=end_time.isoformat(),
+        )
 
-    logger.info(
-        "Generated OHLCV aggregation",
-        exchange=exchange,
-        symbol=symbol,
-        timeframe=timeframe,
-        count=len(ohlcv_list),
-        start_time=start_time.isoformat(),
-        end_time=end_time.isoformat(),
-    )
+        return TimeseriesResponse(
+            ohlcv=ohlcv_list,
+            count=len(ohlcv_list),
+            exchange=exchange,
+            symbol=symbol,
+            timeframe=timeframe,
+            start_time=start_time,
+            end_time=end_time,
+        )
 
-    return TimeseriesResponse(
-        ohlcv=ohlcv_list,
-        count=len(ohlcv_list),
-        exchange=exchange,
-        symbol=symbol,
-        timeframe=timeframe,
-        start_time=start_time,
-        end_time=end_time,
-    )
+    except Exception as e:
+        logger.error(
+            "OHLCV aggregation failed",
+            error=str(e),
+            exchange=exchange,
+            symbol=symbol,
+            timeframe=timeframe,
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Failed to generate OHLCV data: {str(e)}"
+        ) from e
