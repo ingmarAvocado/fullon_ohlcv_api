@@ -121,25 +121,44 @@ class FullonOhlcvGateway:
                 "health_url": f"{self.prefix}/health",
             }
 
-        # Add implemented routers
+        # Add all implemented routers
         from .routers import (
             candles_router,
             exchanges_router,
             symbols_router,
+            timeseries_router,
             trades_router,
+            websocket_router,
         )
 
+        # Trade endpoints (from trade_repository_example.py)
         app.include_router(
-            trades_router, prefix=f"{self.prefix}/api/trades", tags=["trades"]
+            trades_router, prefix=f"{self.prefix}/api/trades", tags=["Trades"]
+        )
+
+        # Candle endpoints (from candle_repository_example.py)
+        app.include_router(
+            candles_router, prefix=f"{self.prefix}/api/candles", tags=["Candles"]
+        )
+
+        # Timeseries endpoints (from timeseries_repository_example.py)
+        app.include_router(
+            timeseries_router,
+            prefix=f"{self.prefix}/api/timeseries",
+            tags=["Timeseries"],
+        )
+
+        # WebSocket endpoints (from websocket_live_ohlcv_example.py)
+        app.include_router(
+            websocket_router, prefix=f"{self.prefix}/ws", tags=["WebSocket"]
+        )
+
+        # Catalog endpoints
+        app.include_router(
+            exchanges_router, prefix=f"{self.prefix}/api", tags=["Exchanges"]
         )
         app.include_router(
-            candles_router, prefix=f"{self.prefix}/api/candles", tags=["candles"]
-        )
-        app.include_router(
-            exchanges_router, prefix=f"{self.prefix}/api", tags=["exchanges"]
-        )
-        app.include_router(
-            symbols_router, prefix=f"{self.prefix}/api", tags=["symbols"]
+            symbols_router, prefix=f"{self.prefix}/api", tags=["Symbols"]
         )
 
     def _add_event_handlers(self, app: FastAPI) -> None:
@@ -169,22 +188,26 @@ class FullonOhlcvGateway:
         """
         routers = []
 
-        # Return implemented routers
+        # Return all implemented routers
         from .routers import (
             candles_router,
             exchanges_router,
             symbols_router,
+            timeseries_router,
             trades_router,
+            websocket_router,
         )
 
         routers.extend(
             [
                 trades_router,
                 candles_router,
+                timeseries_router,
+                websocket_router,
                 exchanges_router,
                 symbols_router,
             ]
         )
 
-        logger.debug("Returning routers for composition", count=len(routers))
+        logger.info("Returning all routers for composition", count=len(routers))
         return routers
