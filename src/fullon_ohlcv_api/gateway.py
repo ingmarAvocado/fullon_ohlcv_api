@@ -9,7 +9,6 @@ from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from fullon_log import get_component_logger
 
 logger = get_component_logger("fullon.api.ohlcv")
