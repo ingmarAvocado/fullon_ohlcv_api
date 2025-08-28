@@ -13,7 +13,12 @@ Usage:
 
 import os
 
-from .gateway import FullonOhlcvGateway
+try:
+    # Try relative import first (when imported as module)
+    from .gateway import FullonOhlcvGateway
+except ImportError:
+    # Fall back to absolute import (when run directly)
+    from fullon_ohlcv_api.gateway import FullonOhlcvGateway
 
 # Create standalone server instance
 gateway = FullonOhlcvGateway(
