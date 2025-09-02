@@ -73,8 +73,12 @@ class TestGatewayIntegration:
         """Test getting routers from gateway."""
         routers = gateway.get_routers()
         assert isinstance(routers, list)
-        # Currently empty until routers are implemented
-        assert len(routers) == 0
+        # Should return all 6 routers for composition
+        assert len(routers) == 6
+        # Verify they are actual router instances
+        from fastapi import APIRouter
+        for router in routers:
+            assert isinstance(router, APIRouter)
     
     def test_app_caching(self, gateway):
         """Test that app instance is cached."""
@@ -167,8 +171,12 @@ class TestLibraryInterface:
         """Test get_all_routers function."""
         routers = get_all_routers()
         assert isinstance(routers, list)
-        # Currently empty until routers are implemented
-        assert len(routers) == 0
+        # Should return all 6 routers for composition
+        assert len(routers) == 6
+        # Verify they are actual router instances
+        from fastapi import APIRouter
+        for router in routers:
+            assert isinstance(router, APIRouter)
     
     def test_public_exports(self):
         """Test that public exports are available."""

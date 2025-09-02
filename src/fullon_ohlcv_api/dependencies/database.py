@@ -1,15 +1,16 @@
 """
-Database dependency injection for fullon_ohlcv_api.
+Database-related dependencies strictly via fullon_ohlcv.
 
-This module provides FastAPI dependency functions for creating and managing
-fullon_ohlcv repository instances with proper async context management and cleanup.
+This module intentionally avoids direct database drivers, SQLAlchemy, or raw SQL.
+Only fullon_ohlcv repositories are used where a DB-backed object is needed.
 """
 
 from collections.abc import AsyncGenerator
+from typing import Any
 
 from fastapi import HTTPException
 from fullon_log import get_component_logger
-from fullon_ohlcv.repositories.ohlcv import (
+from fullon_ohlcv.repositories.ohlcv import (  # type: ignore
     CandleRepository,
     TimeseriesRepository,
     TradeRepository,
@@ -38,7 +39,7 @@ def validate_exchange_symbol(exchange: str | None, symbol: str | None) -> None:
 
 async def get_trade_repository(
     exchange: str, symbol: str
-) -> AsyncGenerator[TradeRepository, None]:
+) -> AsyncGenerator[Any, None]:
     """
     FastAPI dependency for TradeRepository with proper cleanup.
 
@@ -60,17 +61,11 @@ async def get_trade_repository(
     logger.info("Creating TradeRepository", exchange=exchange, symbol=symbol)
 
     try:
-        # Create repository in test mode to avoid production data contamination
+        # Create repository in test mode for examples with isolated test data
         repo = TradeRepository(exchange, symbol, test=True)
-
         try:
-            # Enter async context manager
+            # Enter async context manager (connection/setup)
             await repo.__aenter__()
-            logger.debug(
-                "TradeRepository context entered", exchange=exchange, symbol=symbol
-            )
-            yield repo
-
         except Exception as e:
             logger.error(
                 "Repository initialization error",
@@ -81,22 +76,9 @@ async def get_trade_repository(
             raise HTTPException(
                 status_code=500, detail=f"Repository initialization error: {str(e)}"
             ) from e
-
-        finally:
-            # Ensure cleanup happens
-            try:
-                await repo.__aexit__(None, None, None)
-                logger.info(
-                    "TradeRepository cleaned up", exchange=exchange, symbol=symbol
-                )
-            except Exception as cleanup_error:
-                logger.warning(
-                    "Error during repository cleanup",
-                    error=str(cleanup_error),
-                    exchange=exchange,
-                    symbol=symbol,
-                )
-
+        logger.debug(
+            "TradeRepository context entered", exchange=exchange, symbol=symbol
+        )
     except Exception as e:
         logger.error(
             "Failed to create TradeRepository",
@@ -107,11 +89,27 @@ async def get_trade_repository(
         raise HTTPException(
             status_code=500, detail=f"Database connection error: {str(e)}"
         ) from e
+    try:
+        yield repo
+    finally:
+        # Ensure cleanup happens
+        try:
+            await repo.__aexit__(None, None, None)
+            logger.info(
+                "TradeRepository cleaned up", exchange=exchange, symbol=symbol
+            )
+        except Exception as cleanup_error:
+            logger.warning(
+                "Error during repository cleanup",
+                error=str(cleanup_error),
+                exchange=exchange,
+                symbol=symbol,
+            )
 
 
 async def get_candle_repository(
     exchange: str, symbol: str
-) -> AsyncGenerator[CandleRepository, None]:
+) -> AsyncGenerator[Any, None]:
     """
     FastAPI dependency for CandleRepository with proper cleanup.
 
@@ -133,43 +131,13 @@ async def get_candle_repository(
     logger.info("Creating CandleRepository", exchange=exchange, symbol=symbol)
 
     try:
-        # Create repository in test mode to avoid production data contamination
+        # Create repository in test mode for examples with isolated test data
         repo = CandleRepository(exchange, symbol, test=True)
-
-        try:
-            # Enter async context manager
-            await repo.__aenter__()
-            logger.debug(
-                "CandleRepository context entered", exchange=exchange, symbol=symbol
-            )
-            yield repo
-
-        except Exception as e:
-            logger.error(
-                "Repository initialization error",
-                error=str(e),
-                exchange=exchange,
-                symbol=symbol,
-            )
-            raise HTTPException(
-                status_code=500, detail=f"Repository initialization error: {str(e)}"
-            ) from e
-
-        finally:
-            # Ensure cleanup happens
-            try:
-                await repo.__aexit__(None, None, None)
-                logger.info(
-                    "CandleRepository cleaned up", exchange=exchange, symbol=symbol
-                )
-            except Exception as cleanup_error:
-                logger.warning(
-                    "Error during repository cleanup",
-                    error=str(cleanup_error),
-                    exchange=exchange,
-                    symbol=symbol,
-                )
-
+        # Enter async context manager (connection/setup)
+        await repo.__aenter__()
+        logger.debug(
+            "CandleRepository context entered", exchange=exchange, symbol=symbol
+        )
     except Exception as e:
         logger.error(
             "Failed to create CandleRepository",
@@ -180,11 +148,27 @@ async def get_candle_repository(
         raise HTTPException(
             status_code=500, detail=f"Database connection error: {str(e)}"
         ) from e
+    try:
+        yield repo
+    finally:
+        # Ensure cleanup happens
+        try:
+            await repo.__aexit__(None, None, None)
+            logger.info(
+                "CandleRepository cleaned up", exchange=exchange, symbol=symbol
+            )
+        except Exception as cleanup_error:
+            logger.warning(
+                "Error during repository cleanup",
+                error=str(cleanup_error),
+                exchange=exchange,
+                symbol=symbol,
+            )
 
 
 async def get_timeseries_repository(
     exchange: str, symbol: str
-) -> AsyncGenerator[TimeseriesRepository, None]:
+) -> AsyncGenerator[Any, None]:
     """
     FastAPI dependency for TimeseriesRepository with proper cleanup.
 
@@ -206,43 +190,13 @@ async def get_timeseries_repository(
     logger.info("Creating TimeseriesRepository", exchange=exchange, symbol=symbol)
 
     try:
-        # Create repository in test mode to avoid production data contamination
+        # Create repository in test mode for examples with isolated test data
         repo = TimeseriesRepository(exchange, symbol, test=True)
-
-        try:
-            # Enter async context manager
-            await repo.__aenter__()
-            logger.debug(
-                "TimeseriesRepository context entered", exchange=exchange, symbol=symbol
-            )
-            yield repo
-
-        except Exception as e:
-            logger.error(
-                "Repository initialization error",
-                error=str(e),
-                exchange=exchange,
-                symbol=symbol,
-            )
-            raise HTTPException(
-                status_code=500, detail=f"Repository initialization error: {str(e)}"
-            ) from e
-
-        finally:
-            # Ensure cleanup happens
-            try:
-                await repo.__aexit__(None, None, None)
-                logger.info(
-                    "TimeseriesRepository cleaned up", exchange=exchange, symbol=symbol
-                )
-            except Exception as cleanup_error:
-                logger.warning(
-                    "Error during repository cleanup",
-                    error=str(cleanup_error),
-                    exchange=exchange,
-                    symbol=symbol,
-                )
-
+        # Enter async context manager (connection/setup)
+        await repo.__aenter__()
+        logger.debug(
+            "TimeseriesRepository context entered", exchange=exchange, symbol=symbol
+        )
     except Exception as e:
         logger.error(
             "Failed to create TimeseriesRepository",
@@ -253,35 +207,25 @@ async def get_timeseries_repository(
         raise HTTPException(
             status_code=500, detail=f"Database connection error: {str(e)}"
         ) from e
-
-
-async def get_database_connection():
-    """
-    Get database connection for schema introspection.
-
-    Creates a temporary TradeRepository connection to access the database
-    for exchange discovery operations.
-
-    Returns:
-        Database connection object
-
-    Raises:
-        HTTPException: 500 status code for connection errors
-    """
     try:
-        # Use TradeRepository to get database connection
-        # We use a dummy exchange/symbol since we only need the connection
-        repo = TradeRepository("dummy", "dummy", test=True)
-        await repo.__aenter__()
+        yield repo
+    finally:
+        # Ensure cleanup happens
+        try:
+            await repo.__aexit__(None, None, None)
+            logger.info(
+                "TimeseriesRepository cleaned up", exchange=exchange, symbol=symbol
+            )
+        except Exception as cleanup_error:
+            logger.warning(
+                "Error during repository cleanup",
+                error=str(cleanup_error),
+                exchange=exchange,
+                symbol=symbol,
+            )
 
-        # Access the underlying connection through the repository
-        connection = repo._connection
 
-        logger.debug("Database connection established for schema introspection")
-        return connection
-
-    except Exception as e:
-        logger.error("Failed to establish database connection", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Database connection error: {str(e)}"
-        ) from e
+# NOTE: Intentionally no direct DB connection helpers here.
+# Exchange/symbol discovery should be implemented through explicit
+# APIs in fullon_ohlcv (if/when available) or delegated to another
+# component. We do not expose raw connections.

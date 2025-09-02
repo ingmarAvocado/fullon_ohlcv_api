@@ -6,6 +6,14 @@ For new usage, prefer:
 - Standalone server: python -m fullon_ohlcv_api.standalone_server
 """
 
+import os
+from dotenv import load_dotenv
+
+# Load environment variables at startup
+load_dotenv()
+
+# fullon_ohlcv uses DB_* environment variables directly
+
 from .gateway import FullonOhlcvGateway
 
 # Create gateway instance for backwards compatibility

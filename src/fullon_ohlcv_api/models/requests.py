@@ -7,7 +7,7 @@ the examples-driven requirements from the examples/ folder.
 
 from datetime import datetime
 from enum import Enum
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -73,11 +73,11 @@ class TradeRangeRequest(BaseModel):
         min_length=1,
         description="Trading pair symbol (e.g., 'BTC/USDT', 'ETH/USD')",
     )
-    start_time: Optional[datetime] = Field(
+    start_time: datetime | None = Field(
         default=None,
         description="Start time for trade range query (timezone-aware UTC)",
     )
-    end_time: Optional[datetime] = Field(
+    end_time: datetime | None = Field(
         default=None, description="End time for trade range query (timezone-aware UTC)"
     )
     limit: int = Field(
@@ -86,7 +86,7 @@ class TradeRangeRequest(BaseModel):
 
     @field_validator("start_time", "end_time")
     @classmethod
-    def validate_timezone_aware(cls, v: Optional[datetime]) -> Optional[datetime]:
+    def validate_timezone_aware(cls, v: datetime | None) -> datetime | None:
         """Ensure datetime is timezone-aware (preferably UTC)."""
         if v is not None and v.tzinfo is None:
             raise ValueError(
@@ -123,11 +123,11 @@ class CandleRangeRequest(BaseModel):
     timeframe: TimeframeEnum = Field(
         ..., description="OHLCV timeframe (1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w)"
     )
-    start_time: Optional[datetime] = Field(
+    start_time: datetime | None = Field(
         default=None,
         description="Start time for candle range query (timezone-aware UTC)",
     )
-    end_time: Optional[datetime] = Field(
+    end_time: datetime | None = Field(
         default=None, description="End time for candle range query (timezone-aware UTC)"
     )
     limit: int = Field(
@@ -136,7 +136,7 @@ class CandleRangeRequest(BaseModel):
 
     @field_validator("start_time", "end_time")
     @classmethod
-    def validate_timezone_aware(cls, v: Optional[datetime]) -> Optional[datetime]:
+    def validate_timezone_aware(cls, v: datetime | None) -> datetime | None:
         """Ensure datetime is timezone-aware."""
         if v is not None and v.tzinfo is None:
             raise ValueError(
@@ -170,10 +170,10 @@ class TimeseriesRequest(BaseModel):
     exchange: str = Field(..., min_length=1, description="Exchange name")
     symbol: str = Field(..., min_length=1, description="Trading pair symbol")
     timeframe: TimeframeEnum = Field(..., description="OHLCV aggregation timeframe")
-    start_time: Optional[datetime] = Field(
+    start_time: datetime | None = Field(
         default=None, description="Start time for OHLCV generation (timezone-aware UTC)"
     )
-    end_time: Optional[datetime] = Field(
+    end_time: datetime | None = Field(
         default=None, description="End time for OHLCV generation (timezone-aware UTC)"
     )
     limit: int = Field(
@@ -185,7 +185,7 @@ class TimeseriesRequest(BaseModel):
 
     @field_validator("start_time", "end_time")
     @classmethod
-    def validate_timezone_aware(cls, v: Optional[datetime]) -> Optional[datetime]:
+    def validate_timezone_aware(cls, v: datetime | None) -> datetime | None:
         """Ensure datetime is timezone-aware."""
         if v is not None and v.tzinfo is None:
             raise ValueError(
@@ -281,16 +281,16 @@ class SymbolListRequest(BaseModel):
     active_only: bool = Field(
         default=True, description="Only return active trading pairs"
     )
-    base_currency: Optional[str] = Field(
+    base_currency: str | None = Field(
         default=None, description="Filter by base currency (e.g., 'BTC')"
     )
-    quote_currency: Optional[str] = Field(
+    quote_currency: str | None = Field(
         default=None, description="Filter by quote currency (e.g., 'USDT')"
     )
 
     @field_validator("exchange", "base_currency", "quote_currency")
     @classmethod
-    def validate_non_empty_string(cls, v: Optional[str]) -> Optional[str]:
+    def validate_non_empty_string(cls, v: str | None) -> str | None:
         """Ensure strings are not empty after stripping."""
         if v is not None and not v.strip():
             raise ValueError("Value cannot be empty")

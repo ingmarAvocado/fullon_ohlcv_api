@@ -24,8 +24,8 @@ async def main():
     """Candle repository API example."""
     load_dotenv()
 
-    api_host = os.getenv("API_HOST", "0.0.0.0")
-    api_port = os.getenv("API_PORT", "8000")
+    api_host = os.getenv("API_HOST", "127.0.0.1")
+    api_port = os.getenv("API_PORT", "9000")
     base_url = f"http://{api_host}:{api_port}"
 
     print("🕯️  Candle Repository API Example")
@@ -34,7 +34,7 @@ async def main():
     async with aiohttp.ClientSession() as session:
         exchange = "binance"
         symbol = "BTC/USDT"
-        timeframe = "1h"
+        timeframe = "1m"  # Use timeframe that matches populated data
 
         # Get recent candles
         try:

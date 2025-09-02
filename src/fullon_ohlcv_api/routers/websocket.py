@@ -20,12 +20,12 @@ router = APIRouter()
 class ConnectionManager:
     """Manage WebSocket connections and subscriptions."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize connection manager."""
         self.active_connections: list[WebSocket] = []
         self.subscriptions: dict[str, list[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket) -> None:
         """Connect a WebSocket client."""
         await websocket.accept()
         self.active_connections.append(websocket)
@@ -33,7 +33,7 @@ class ConnectionManager:
             "WebSocket client connected", total_connections=len(self.active_connections)
         )
 
-    def disconnect(self, websocket: WebSocket):
+    def disconnect(self, websocket: WebSocket) -> None:
         """Disconnect a WebSocket client."""
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
@@ -50,7 +50,7 @@ class ConnectionManager:
             total_connections=len(self.active_connections),
         )
 
-    def subscribe(self, websocket: WebSocket, subscription_key: str):
+    def subscribe(self, websocket: WebSocket, subscription_key: str) -> None:
         """Subscribe a WebSocket client to updates."""
         if subscription_key not in self.subscriptions:
             self.subscriptions[subscription_key] = []
@@ -63,7 +63,7 @@ class ConnectionManager:
                 clients=len(self.subscriptions[subscription_key]),
             )
 
-    def unsubscribe(self, websocket: WebSocket, subscription_key: str):
+    def unsubscribe(self, websocket: WebSocket, subscription_key: str) -> None:
         """Unsubscribe a WebSocket client from updates."""
         if (
             subscription_key in self.subscriptions
@@ -74,14 +74,16 @@ class ConnectionManager:
                 del self.subscriptions[subscription_key]
             logger.info("Client unsubscribed", subscription=subscription_key)
 
-    async def send_personal_message(self, message: str, websocket: WebSocket):
+    async def send_personal_message(self, message: str, websocket: WebSocket) -> None:
         """Send message to a specific WebSocket client."""
         try:
             await websocket.send_text(message)
         except Exception as e:
             logger.error("Failed to send personal message", error=str(e))
 
-    async def broadcast_to_subscription(self, message: str, subscription_key: str):
+    async def broadcast_to_subscription(
+        self, message: str, subscription_key: str
+    ) -> None:
         """Broadcast message to all clients subscribed to a specific key."""
         if subscription_key not in self.subscriptions:
             return
@@ -104,7 +106,7 @@ manager = ConnectionManager()
 
 
 @router.websocket("/ohlcv")
-async def websocket_ohlcv_endpoint(websocket: WebSocket):
+async def websocket_ohlcv_endpoint(websocket: WebSocket) -> None:
     """
     WebSocket endpoint for real-time OHLCV streaming.
 
@@ -161,7 +163,9 @@ async def websocket_ohlcv_endpoint(websocket: WebSocket):
         logger.info("WebSocket client disconnected normally")
 
 
-async def handle_websocket_message(websocket: WebSocket, message: dict[str, Any]):
+async def handle_websocket_message(
+    websocket: WebSocket, message: dict[str, Any]
+) -> None:
     """Handle incoming WebSocket message."""
     action = message.get("action")
 
@@ -178,7 +182,7 @@ async def handle_websocket_message(websocket: WebSocket, message: dict[str, Any]
         await manager.send_personal_message(json.dumps(error_response), websocket)
 
 
-async def handle_subscribe(websocket: WebSocket, message: dict[str, Any]):
+async def handle_subscribe(websocket: WebSocket, message: dict[str, Any]) -> None:
     """Handle subscription request."""
     try:
         exchange = message.get("exchange")
@@ -194,6 +198,12 @@ async def handle_subscribe(websocket: WebSocket, message: dict[str, Any]):
             }
             await manager.send_personal_message(json.dumps(error_response), websocket)
             return
+
+        # Type assertions for mypy - we know these are strings after validation
+        assert isinstance(exchange, str)
+        assert isinstance(symbol, str)
+        assert isinstance(timeframe, str)
+        assert isinstance(message_type, str)
 
         # Create subscription key
         subscription_key = f"{exchange}:{symbol}:{timeframe}:{message_type}"
@@ -233,7 +243,7 @@ async def handle_subscribe(websocket: WebSocket, message: dict[str, Any]):
         await manager.send_personal_message(json.dumps(error_response), websocket)
 
 
-async def handle_unsubscribe(websocket: WebSocket, message: dict[str, Any]):
+async def handle_unsubscribe(websocket: WebSocket, message: dict[str, Any]) -> None:
     """Handle unsubscription request."""
     try:
         exchange = message.get("exchange")
@@ -286,7 +296,7 @@ async def handle_unsubscribe(websocket: WebSocket, message: dict[str, Any]):
 
 async def send_sample_ohlcv_update(
     subscription_key: str, exchange: str, symbol: str, timeframe: str
-):
+) -> None:
     """Send a sample OHLCV update for demonstration purposes."""
     # In a real implementation, this would be triggered by actual market data
     sample_update = {

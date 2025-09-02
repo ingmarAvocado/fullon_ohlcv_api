@@ -19,39 +19,41 @@ Simple examples demonstrating fullon_ohlcv_api usage patterns via HTTP API and W
 Copy `.env.example` to `.env`:
 
 ```bash
-# API Server Configuration
-API_HOST=0.0.0.0
-API_PORT=8000
+# API Server Configuration used by run_all
+API_HOST=127.0.0.1
+API_PORT=9000
 ```
 
 ### Dependencies
 
+This project uses Poetry for dependency management.
+
 ```bash
-pip install aiohttp python-dotenv websockets
+poetry add aiohttp python-dotenv websockets
 ```
 
 ### Run Examples
 
 ```bash
 # All examples (full integration test)
-python run_all.py
+poetry run python examples/run_all.py
 
 # Individual examples with test infrastructure
-python run_all.py --example trade_repository_example.py
-python run_all.py --example candle_repository_example.py
-python run_all.py --example timeseries_repository_example.py
-python run_all.py --example websocket_live_ohlcv_example.py
+poetry run python examples/run_all.py --example trade_repository_example.py
+poetry run python examples/run_all.py --example candle_repository_example.py
+poetry run python examples/run_all.py --example timeseries_repository_example.py
+poetry run python examples/run_all.py --example websocket_live_ohlcv_example.py
 
 # Development modes
-python run_all.py --setup-only     # Setup test DB + start server, keep running
-python run_all.py --cleanup-only   # Cleanup any running servers
-python run_all.py --list          # List available examples
+poetry run python examples/run_all.py --setup-only     # Setup test DB + start server, keep running
+poetry run python examples/run_all.py --cleanup-only   # Cleanup any running servers
+poetry run python examples/run_all.py --list          # List available examples
 
 # Direct execution (requires running API server)
-python trade_repository_example.py  # Only if server already running
+poetry run python examples/trade_repository_example.py  # Only if server already running
 ```
 
-**Note**: Individual examples require the API server and test database. Use `run_all.py` to manage the test infrastructure automatically.
+**Note**: Individual examples require the API server and test database. Use `examples/run_all.py` to manage the test infrastructure automatically. Default port is 9000 and clients connect to 127.0.0.1.
 
 ## 📊 API Usage
 

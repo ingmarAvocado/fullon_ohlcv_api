@@ -258,8 +258,13 @@ logger.error("Database error", error=str(e), exchange="coinbase", symbol="ETH/US
 
 ### **Required Environment Variables**
 ```bash
-# Database (handled by fullon_ohlcv)
-DATABASE_URL=postgresql://user:pass@localhost/fullon_ohlcv
+# Database (handled by fullon_ohlcv) — use DB_* variables
+DB_HOST=10.206.35.109
+DB_PORT=5432
+DB_USER=fullon
+DB_PASSWORD=fullon
+DB_OHLCV_NAME=fullon_ohlcv2
+DB_TEST_NAME=fullon_ohlcv2_test
 
 # API Server
 API_HOST=0.0.0.0

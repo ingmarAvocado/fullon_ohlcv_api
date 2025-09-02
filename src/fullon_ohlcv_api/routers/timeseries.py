@@ -6,24 +6,24 @@ specification defined by timeseries_repository_example.py.
 """
 
 from datetime import datetime
-from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import arrow
+from fastapi import APIRouter, HTTPException, Path, Query
 from fullon_log import get_component_logger
-from fullon_ohlcv.repositories.ohlcv import TimeseriesRepository
+from fullon_ohlcv.repositories.ohlcv import TimeseriesRepository  # type: ignore
 
-from ..dependencies.database import get_timeseries_repository
 from ..models.responses import TimeseriesResponse
+from .candles import convert_timeframe_to_compression
 
 logger = get_component_logger("fullon.api.ohlcv.timeseries")
 
 router = APIRouter()
 
 
-@router.get("/{exchange}/{symbol}/ohlcv", response_model=TimeseriesResponse)
-async def get_ohlcv_aggregation(
-    exchange: str,
-    symbol: str,
+@router.get("/{exchange}/{symbol:path}/ohlcv", response_model=TimeseriesResponse)
+async def get_ohlcv_aggregation(  # type: ignore[no-any-unimported]
+    exchange: str = Path(..., description="Exchange name"),
+    symbol: str = Path(..., description="Trading pair (e.g., 'BTC/USDT')"),
     timeframe: str = Query(
         default="1m",
         description="Timeframe for OHLCV aggregation (e.g., '1m', '5m', '1h')",
@@ -34,13 +34,13 @@ async def get_ohlcv_aggregation(
     end_time: datetime = Query(
         ..., description="End time for aggregation range (ISO format)"
     ),
-    limit: Optional[int] = Query(
+    limit: int
+    | None = Query(
         default=100,
         ge=1,
         le=10000,
         description="Maximum number of OHLCV candles to generate",
     ),
-    repo: TimeseriesRepository = Depends(get_timeseries_repository),
 ) -> TimeseriesResponse:
     """
     Generate OHLCV candles from trade data via timeseries aggregation.
@@ -72,34 +72,40 @@ async def get_ohlcv_aggregation(
         limit=limit,
     )
 
-    # Validate timeframe
-    supported_timeframes = ["1m", "5m", "15m", "30m", "1h", "4h", "1d"]
-    if timeframe not in supported_timeframes:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Unsupported timeframe: {timeframe}. Supported timeframes: {supported_timeframes}",
-        )
-
     try:
-        # Generate OHLCV data using fullon_ohlcv TimeseriesRepository
-        ohlcv_data = await repo.fetch_ohlcv(
-            start_time=start_time,
-            end_time=end_time,
-            timeframe=timeframe,
-            limit=limit,
-        )
+        # Validate timeframe and convert to repo parameters (ensure 422 precedes repo init)
+        compression, period = convert_timeframe_to_compression(timeframe)
 
-        # Convert OHLCV candles to dict format for response
+        # Timescale-only aggregation path
+        async with TimeseriesRepository(exchange, symbol, test=True) as repo:
+            start_arrow = arrow.get(start_time)
+            end_arrow = arrow.get(end_time)
+
+            tuples = await repo.fetch_ohlcv(
+                compression=compression,
+                period=period,
+                fromdate=start_arrow,
+                todate=end_arrow,
+            )
+
+        # Apply limit on the result if provided
+        if limit is not None:
+            tuples = tuples[-limit:]
+
+        # Convert tuples to dicts (handle potential NULLs from gapfill/LOCF)
+        def _f(x):
+            return float(x) if x is not None else 0.0
+
         ohlcv_list = [
             {
-                "timestamp": candle.timestamp.isoformat(),
-                "open": float(candle.open),
-                "high": float(candle.high),
-                "low": float(candle.low),
-                "close": float(candle.close),
-                "vol": float(candle.vol),
+                "timestamp": ts.datetime.isoformat() if hasattr(ts, "datetime") else ts.isoformat(),
+                "open": _f(o),
+                "high": _f(h),
+                "low": _f(l),
+                "close": _f(c),
+                "vol": _f(v),
             }
-            for candle in ohlcv_data
+            for ts, o, h, l, c, v in tuples
         ]
 
         logger.info(
@@ -122,6 +128,9 @@ async def get_ohlcv_aggregation(
             end_time=end_time,
         )
 
+    except HTTPException:
+        # Preserve explicit HTTP errors like 422 for invalid timeframe
+        raise
     except Exception as e:
         logger.error(
             "OHLCV aggregation failed",

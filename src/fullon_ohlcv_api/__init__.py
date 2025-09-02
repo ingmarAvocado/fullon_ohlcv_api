@@ -12,18 +12,35 @@ Usage:
     python -m fullon_ohlcv_api.standalone_server
 """
 
+from fastapi import APIRouter
+
 from .gateway import FullonOhlcvGateway
 
 
-def get_all_routers():
+def get_all_routers() -> list[APIRouter]:
     """
     Get all routers for master_api composition.
 
     Returns:
         List[APIRouter]: All OHLCV API routers for external composition
     """
-    gateway = FullonOhlcvGateway()
-    return gateway.get_routers()
+    from .routers import (
+        candles_router,
+        exchanges_router,
+        symbols_router,
+        timeseries_router,
+        trades_router,
+        websocket_router,
+    )
+
+    return [
+        trades_router,
+        candles_router,
+        timeseries_router,
+        websocket_router,
+        exchanges_router,
+        symbols_router,
+    ]
 
 
 # Public API exports

@@ -6,7 +6,7 @@ the examples-driven requirements from the examples/ folder.
 """
 
 from datetime import UTC, datetime
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -22,7 +22,7 @@ class BaseResponse(BaseModel):
     success: bool = Field(
         default=True, description="Indicates if the request was successful"
     )
-    message: Optional[str] = Field(
+    message: str | None = Field(
         default=None, description="Optional message about the response"
     )
     timestamp: datetime = Field(
@@ -49,27 +49,27 @@ class TradesResponse(BaseResponse):
     symbol: str = Field(..., description="Trading pair symbol for the trades")
 
     # Pagination fields (optional)
-    offset: Optional[int] = Field(
+    offset: int | None = Field(
         default=None, ge=0, description="Offset used for pagination"
     )
-    limit: Optional[int] = Field(
+    limit: int | None = Field(
         default=None, ge=1, description="Limit used for pagination"
     )
-    total_available: Optional[int] = Field(
+    total_available: int | None = Field(
         default=None, ge=0, description="Total number of trades available"
     )
 
     # Time range fields (for range queries)
-    start_time: Optional[datetime] = Field(
+    start_time: datetime | None = Field(
         default=None, description="Start time of the queried range"
     )
-    end_time: Optional[datetime] = Field(
+    end_time: datetime | None = Field(
         default=None, description="End time of the queried range"
     )
 
     @field_validator("start_time", "end_time")
     @classmethod
-    def validate_timezone_aware(cls, v: Optional[datetime]) -> Optional[datetime]:
+    def validate_timezone_aware(cls, v: datetime | None) -> datetime | None:
         """Ensure datetime is timezone-aware."""
         if v is not None and v.tzinfo is None:
             raise ValueError("Datetime must be timezone-aware")
@@ -99,27 +99,27 @@ class CandlesResponse(BaseResponse):
     )
 
     # Pagination fields (optional)
-    offset: Optional[int] = Field(
+    offset: int | None = Field(
         default=None, ge=0, description="Offset used for pagination"
     )
-    limit: Optional[int] = Field(
+    limit: int | None = Field(
         default=None, ge=1, description="Limit used for pagination"
     )
-    total_available: Optional[int] = Field(
+    total_available: int | None = Field(
         default=None, ge=0, description="Total number of candles available"
     )
 
     # Time range fields (for range queries)
-    start_time: Optional[datetime] = Field(
+    start_time: datetime | None = Field(
         default=None, description="Start time of the queried range"
     )
-    end_time: Optional[datetime] = Field(
+    end_time: datetime | None = Field(
         default=None, description="End time of the queried range"
     )
 
     @field_validator("start_time", "end_time")
     @classmethod
-    def validate_timezone_aware(cls, v: Optional[datetime]) -> Optional[datetime]:
+    def validate_timezone_aware(cls, v: datetime | None) -> datetime | None:
         """Ensure datetime is timezone-aware."""
         if v is not None and v.tzinfo is None:
             raise ValueError("Datetime must be timezone-aware")
@@ -147,18 +147,18 @@ class TimeseriesResponse(BaseResponse):
     timeframe: str = Field(..., description="Timeframe used for OHLCV aggregation")
 
     # Time range fields (for aggregation range)
-    start_time: Optional[datetime] = Field(
+    start_time: datetime | None = Field(
         default=None, description="Start time of the aggregation range"
     )
-    end_time: Optional[datetime] = Field(
+    end_time: datetime | None = Field(
         default=None, description="End time of the aggregation range"
     )
 
     # Metadata about the aggregation
-    trades_processed: Optional[int] = Field(
+    trades_processed: int | None = Field(
         default=None, ge=0, description="Number of trades used for OHLCV aggregation"
     )
-    generation_time_ms: Optional[float] = Field(
+    generation_time_ms: float | None = Field(
         default=None,
         ge=0,
         description="Time taken to generate OHLCV data in milliseconds",
@@ -166,7 +166,7 @@ class TimeseriesResponse(BaseResponse):
 
     @field_validator("start_time", "end_time")
     @classmethod
-    def validate_timezone_aware(cls, v: Optional[datetime]) -> Optional[datetime]:
+    def validate_timezone_aware(cls, v: datetime | None) -> datetime | None:
         """Ensure datetime is timezone-aware."""
         if v is not None and v.tzinfo is None:
             raise ValueError("Datetime must be timezone-aware")
@@ -199,10 +199,10 @@ class WebSocketUpdate(BaseModel):
     timestamp: datetime = Field(..., description="Timestamp of the update")
 
     # Subscription tracking
-    subscription_id: Optional[str] = Field(
+    subscription_id: str | None = Field(
         default=None, description="Unique identifier for the subscription"
     )
-    sequence: Optional[int] = Field(
+    sequence: int | None = Field(
         default=None, ge=0, description="Sequence number for ordering updates"
     )
 
@@ -228,15 +228,15 @@ class ErrorResponse(BaseResponse):
     status_code: int = Field(
         ..., ge=400, le=599, description="HTTP status code for the error"
     )
-    details: Optional[dict[str, Any]] = Field(
+    details: dict[str, Any] | None = Field(
         default=None, description="Additional error details and context"
     )
 
     # Request context (helpful for debugging)
-    request_id: Optional[str] = Field(
+    request_id: str | None = Field(
         default=None, description="Unique identifier for the request"
     )
-    path: Optional[str] = Field(
+    path: str | None = Field(
         default=None, description="API endpoint path that generated the error"
     )
 
@@ -252,7 +252,7 @@ class ExchangesResponse(BaseResponse):
         ..., description="List of available exchanges"
     )
     count: int = Field(..., ge=0, description="Number of exchanges returned")
-    total_available: Optional[int] = Field(
+    total_available: int | None = Field(
         default=None, ge=0, description="Total number of exchanges available"
     )
 
@@ -269,17 +269,17 @@ class SymbolsResponse(BaseResponse):
     )
     count: int = Field(..., ge=0, description="Number of symbols returned")
     exchange: str = Field(..., description="Exchange name for the symbols")
-    total_available: Optional[int] = Field(
+    total_available: int | None = Field(
         default=None,
         ge=0,
         description="Total number of symbols available on the exchange",
     )
 
     # Filter context (if filters were applied)
-    base_currency: Optional[str] = Field(
+    base_currency: str | None = Field(
         default=None, description="Base currency filter that was applied"
     )
-    quote_currency: Optional[str] = Field(
+    quote_currency: str | None = Field(
         default=None, description="Quote currency filter that was applied"
     )
 
@@ -298,10 +298,10 @@ class HealthResponse(BaseResponse):
     uptime_seconds: float = Field(..., ge=0, description="API uptime in seconds")
 
     # Component health status
-    database: Optional[dict[str, Any]] = Field(
+    database: dict[str, Any] | None = Field(
         default=None, description="Database connection health"
     )
-    dependencies: Optional[dict[str, Any]] = Field(
+    dependencies: dict[str, Any] | None = Field(
         default=None, description="External dependency health status"
     )
 
@@ -318,7 +318,7 @@ class ValidationErrorDetail(BaseModel):
     invalid_value: Any = Field(
         default=None, description="The invalid value that was provided"
     )
-    constraint: Optional[str] = Field(
+    constraint: str | None = Field(
         default=None, description="Validation constraint that was violated"
     )
 
@@ -334,10 +334,10 @@ class PaginatedResponse(BaseResponse):
     per_page: int = Field(
         default=100, ge=1, le=5000, description="Number of items per page"
     )
-    total_pages: Optional[int] = Field(
+    total_pages: int | None = Field(
         default=None, ge=0, description="Total number of pages available"
     )
-    total_items: Optional[int] = Field(
+    total_items: int | None = Field(
         default=None, ge=0, description="Total number of items available"
     )
     has_next: bool = Field(

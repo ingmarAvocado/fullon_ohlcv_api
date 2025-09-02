@@ -5,9 +5,8 @@ This class provides the core functionality for integrating fullon_ohlcv
 with FastAPI for OHLCV market data operations via REST API.
 """
 
-from typing import Optional
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fullon_log import get_component_logger
 
@@ -52,7 +51,7 @@ class FullonOhlcvGateway:
         self.description = description
         self.version = version
         self.prefix = prefix
-        self._app: Optional[FastAPI] = None
+        self._app: FastAPI | None = None
 
         logger.info(
             "FullonOhlcvGateway initialized",
@@ -104,13 +103,13 @@ class FullonOhlcvGateway:
         """Add routes to the application."""
 
         @app.get(f"{self.prefix}/health")
-        async def health_check():
+        async def health_check() -> dict[str, str]:
             """Health check endpoint."""
             logger.debug("Health check requested")
             return {"status": "healthy", "service": "fullon_ohlcv_api"}
 
         @app.get(f"{self.prefix}/")
-        async def root():
+        async def root() -> dict[str, str]:
             """Root endpoint."""
             logger.debug("Root endpoint requested")
             return {
@@ -164,7 +163,7 @@ class FullonOhlcvGateway:
         """Add event handlers to the application."""
 
         @app.on_event("startup")
-        async def startup_event():
+        async def startup_event() -> None:
             """Application startup event."""
             logger.info(
                 "OHLCV Gateway starting up",
@@ -174,20 +173,17 @@ class FullonOhlcvGateway:
             )
 
         @app.on_event("shutdown")
-        async def shutdown_event():
+        async def shutdown_event() -> None:
             """Application shutdown event."""
             logger.info("OHLCV Gateway shutting down")
 
-    def get_routers(self) -> list:
+    def get_routers(self) -> list[APIRouter]:
         """
         Get all routers for composing into master_api.
 
         Returns:
             List of FastAPI router instances
         """
-        routers = []
-
-        # Return all implemented routers
         from .routers import (
             candles_router,
             exchanges_router,
@@ -197,16 +193,14 @@ class FullonOhlcvGateway:
             websocket_router,
         )
 
-        routers.extend(
-            [
-                trades_router,
-                candles_router,
-                timeseries_router,
-                websocket_router,
-                exchanges_router,
-                symbols_router,
-            ]
-        )
+        routers = [
+            trades_router,
+            candles_router,
+            timeseries_router,
+            websocket_router,
+            exchanges_router,
+            symbols_router,
+        ]
 
         logger.info("Returning all routers for composition", count=len(routers))
         return routers

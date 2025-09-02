@@ -1,1 +1,1 @@
-"""Database tests package.""" 
+"""Database tests package."""

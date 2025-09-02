@@ -24,8 +24,8 @@ async def main():
     """WebSocket live OHLCV example."""
     load_dotenv()
 
-    api_host = os.getenv("API_HOST", "0.0.0.0")
-    api_port = os.getenv("API_PORT", "8000")
+    api_host = os.getenv("API_HOST", "127.0.0.1")
+    api_port = os.getenv("API_PORT", "9000")
     ws_url = f"ws://{api_host}:{api_port}/ws/ohlcv"
 
     print("📡 WebSocket Live OHLCV Example")

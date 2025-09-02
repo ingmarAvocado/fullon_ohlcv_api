@@ -1,1 +1,1 @@
-"""OHLCV repository tests package.""" 
+"""OHLCV repository tests package."""

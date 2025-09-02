@@ -99,11 +99,20 @@ cp .env.example .env
 # Edit .env with your database settings
 ```
 
-### Configuration
+### Configuration (.env)
+
+This project (and fullon_ohlcv) uses individual DB_* environment variables.
 
 ```bash
-# .env file
-DATABASE_URL=postgresql://user:pass@localhost/fullon_ohlcv
+# Database Configuration
+DB_HOST=10.206.35.109
+DB_PORT=5432
+DB_USER=fullon
+DB_PASSWORD=fullon
+DB_OHLCV_NAME=fullon_ohlcv2
+DB_TEST_NAME=fullon_ohlcv2_test
+
+# API Server
 API_HOST=0.0.0.0
 API_PORT=8000
 LOG_LEVEL=INFO
@@ -388,7 +397,8 @@ make docker-run
 # Install production dependencies only
 poetry install --no-dev
 
-# Run with production ASGI server
+# Ensure DB_* variables are set in the environment
+# Then run with a production ASGI server
 poetry run uvicorn src.fullon_ohlcv_api.main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 

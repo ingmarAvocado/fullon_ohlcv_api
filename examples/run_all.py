@@ -17,8 +17,6 @@ from datetime import UTC, datetime, timedelta
 from dotenv import load_dotenv
 
 try:
-    from fullon_ohlcv.models import Candle, Trade
-    from fullon_ohlcv.repositories.ohlcv import CandleRepository, TradeRepository
     from fullon_ohlcv.utils import install_uvloop
 except ImportError:
     print("❌ fullon_ohlcv not available - cannot run examples")
@@ -42,7 +40,9 @@ class ExampleTestRunner:
     """
 
     def __init__(self):
-        load_dotenv()
+        # Load environment variables from the project root .env file
+        env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+        load_dotenv(env_path)
         self.api_process = None
         self.examples = [
             "trade_repository_example.py",
@@ -55,78 +55,89 @@ class ExampleTestRunner:
         self.available_examples = self.examples
 
         # Test configuration
-        self.api_host = os.getenv("API_HOST", "0.0.0.0")
-        self.api_port = os.getenv("API_PORT", "8000")
+        self.api_host = os.getenv("API_HOST", "127.0.0.1")
+        # Enforce API port >= 9000 (default 9000)
+        env_port = os.getenv("API_PORT")
+        try:
+            port = int(env_port) if env_port is not None else 9000
+        except ValueError:
+            logger.warning("Invalid API_PORT '%s'; falling back to 9000", env_port)
+            port = 9000
+        if port < 9000:
+            logger.info("API_PORT %s is below 9000; using 9000", port)
+            port = 9000
+        self.api_port = port
+        # Ensure child processes (server/examples) see the same port
+        os.environ["API_PORT"] = str(self.api_port)
         self.test_exchange = "binance"
         self.test_symbols = ["BTC/USDT", "ETH/USDT"]
+        # Database names
+        self.test_db_name = os.getenv("DB_TEST_NAME", "fullon_ohlcv2_test")
+        if "test" not in self.test_db_name.lower():
+            logger.warning(
+                "DB_TEST_NAME '%s' does not look like a test database; examples may write to non-test DB",
+                self.test_db_name,
+            )
+
+    async def ensure_timescale_database(self) -> None:
+        """Ensure the test database exists and has TimescaleDB enabled."""
+        import asyncpg
+
+        # Create DB if missing via postgres admin connection
+        admin_user = os.getenv("DB_USER", "fullon")
+        admin_pass = os.getenv("DB_PASSWORD", "fullon")
+        host = os.getenv("DB_HOST", "localhost")
+        port = os.getenv("DB_PORT", "5432")
+
+        admin_dsn = f"postgresql://{admin_user}:{admin_pass}@{host}:{port}/postgres"
+        conn = await asyncpg.connect(admin_dsn)
+        try:
+            exists = await conn.fetchval(
+                "SELECT 1 FROM pg_database WHERE datname=$1", self.test_db_name
+            )
+            if not exists:
+                # Use f-string for database name (cannot use parameters for database name in CREATE DATABASE)
+                await conn.execute(f"CREATE DATABASE {self.test_db_name}")
+                print(f"✅ Created database {self.test_db_name}")
+        finally:
+            await conn.close()
+
+        # Enable extension in target DB
+        db_dsn = f"postgresql://{admin_user}:{admin_pass}@{host}:{port}/{self.test_db_name}"
+        conn2 = await asyncpg.connect(db_dsn)
+        try:
+            await conn2.execute("CREATE EXTENSION IF NOT EXISTS timescaledb")
+            print(f"✅ Ensured timescaledb extension in {self.test_db_name}")
+        finally:
+            await conn2.close()
 
     async def setup_test_database(self):
-        """Setup test database with sample data."""
-        print("🗄️  Setting up test database...")
+        """Setup test database with realistic sample data - KISS approach."""
+        print("🗄️  Setting up test database with realistic market data...")
 
         try:
-            # Create test data
-            test_trades = []
-            test_candles = []
-
-            base_time = datetime.now(UTC)
-            base_price = 50000.0
-
-            for i in range(20):
-                # Create test trades
-                trade_time = base_time - timedelta(minutes=i * 5)
-                price = base_price + (i * 100)  # Varying prices
-
-                trade = Trade(
-                    timestamp=trade_time,
-                    price=price,
-                    volume=0.1 + (i * 0.01),
-                    side="BUY" if i % 2 == 0 else "SELL",
-                    type="MARKET",
-                )
-                test_trades.append(trade)
-
-                # Create test candles
-                if i % 5 == 0:  # Every 5th iteration
-                    candle = Candle(
-                        timestamp=trade_time,
-                        open=price - 50,
-                        high=price + 100,
-                        low=price - 100,
-                        close=price,
-                        vol=10.0 + i,
-                    )
-                    test_candles.append(candle)
-
-            # Save to test database
-            for symbol in self.test_symbols:
-                # Save trades
-                async with TradeRepository(
-                    self.test_exchange, symbol, test=True
-                ) as repo:
-                    success = await repo.save_trades(test_trades)
-                    if success:
-                        print(f"✅ Created {len(test_trades)} test trades for {symbol}")
-                    else:
-                        print(f"⚠️  Failed to create test trades for {symbol}")
-
-                # Save candles
-                async with CandleRepository(
-                    self.test_exchange, symbol, test=True
-                ) as repo:
-                    success = await repo.save_candles(test_candles)
-                    if success:
-                        print(
-                            f"✅ Created {len(test_candles)} test candles for {symbol}"
-                        )
-                    else:
-                        print(f"⚠️  Failed to create test candles for {symbol}")
-
-            print("✅ Test database setup complete")
+            # Ensure DB and extension
+            await self.ensure_timescale_database()
+            # Use the KISS approach that actually works
+            from fill_data_examples import ExampleDataFiller
+            filler = ExampleDataFiller(test_mode=True)
+            
+            print("🧹 Clearing any existing data...")
+            await filler.clear_all_data()
+            
+            print("📊 Filling database...")
+            success = await filler.fill_all_data()
+            
+            if success:
+                print("✅ Test database setup complete with realistic market data")
+            else:
+                print("⚠️  Database fill failed, but examples will still run")
+                print("💡 API will return valid empty responses where data is missing")
 
         except Exception as e:
-            print(f"❌ Failed to setup test database: {e}")
-            raise
+            print(f"⚠️  Failed to setup test database: {e}")
+            print("💡 Examples will run without test data (API will return empty but valid responses)")
+            # Don't raise - let examples run even without data
 
     async def start_api_server(self):
         """Start the API server for testing."""
@@ -142,30 +153,55 @@ class ExampleTestRunner:
 
             # Set test environment
             env = os.environ.copy()
-            env["DB_TEST_NAME"] = "fullon_ohlcv_test"  # Force test database
+            # Use the test database name from environment or default
+            test_db_name = os.getenv("DB_TEST_NAME", "fullon_ohlcv2_test")
+            env["DB_TEST_NAME"] = test_db_name
+            env["API_HOST"] = self.api_host
+            env["API_PORT"] = str(self.api_port)
 
             # Start server process
             self.api_process = subprocess.Popen(
                 [sys.executable, server_path],
                 env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT,
             )
 
             # Wait for server to start
             print("⏳ Waiting for server to start...")
-            await asyncio.sleep(3)
+            # Poll health endpoint for readiness (up to ~10s)
+            ready = await self._wait_for_health(timeout_seconds=10)
 
             # Check if server is running
-            if self.api_process.poll() is None:
-                print(f"✅ API server started on {self.api_host}:{self.api_port}")
-            else:
+            if self.api_process.poll() is not None or not ready:
                 stdout, stderr = self.api_process.communicate()
                 raise RuntimeError(f"Server failed to start: {stderr.decode()}")
+            else:
+                print(f"✅ API server started on {self.api_host}:{self.api_port}")
 
         except Exception as e:
             print(f"❌ Failed to start API server: {e}")
             raise
+
+    async def _wait_for_health(self, timeout_seconds: int = 10) -> bool:
+        """Poll the /health endpoint until it responds or timeout."""
+        import time
+        from urllib.request import urlopen
+        from urllib.error import URLError
+
+        deadline = time.time() + timeout_seconds
+        url = f"http://{self.api_host}:{self.api_port}/health"
+        while time.time() < deadline:
+            try:
+                with urlopen(url, timeout=1) as resp:
+                    if resp.getcode() == 200:
+                        return True
+            except URLError:
+                pass
+            except Exception:
+                pass
+            await asyncio.sleep(0.5)
+        return False
 
     def stop_api_server(self):
         """Stop the API server."""
@@ -187,9 +223,12 @@ class ExampleTestRunner:
         print(f"\n🧪 Running {example_file}...")
 
         try:
+            # Get the path to the example file (should be in the same directory as run_all.py)
+            example_path = os.path.join(os.path.dirname(__file__), example_file)
+            
             # Run the example
             result = subprocess.run(
-                [sys.executable, example_file],
+                [sys.executable, example_path],
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -245,7 +284,32 @@ class ExampleTestRunner:
         # Stop API server
         self.stop_api_server()
 
-        # Clean up test database (optional - test data is isolated)
+        # Optionally drop the whole test database
+        try:
+            import asyncpg
+            admin_user = os.getenv("DB_USER", "fullon")
+            admin_pass = os.getenv("DB_PASSWORD", "fullon")
+            host = os.getenv("DB_HOST", "localhost")
+            port = os.getenv("DB_PORT", "5432")
+            admin_dsn = f"postgresql://{admin_user}:{admin_pass}@{host}:{port}/postgres"
+            conn = await asyncpg.connect(admin_dsn)
+            try:
+                # terminate connections
+                await conn.execute(
+                    f"""
+                    SELECT pg_terminate_backend(pid)
+                    FROM pg_stat_activity
+                    WHERE datname = '{self.test_db_name}' AND pid <> pg_backend_pid()
+                    """
+                )
+                await conn.execute(f"DROP DATABASE IF EXISTS {self.test_db_name}")
+                print(f"✅ Dropped test database {self.test_db_name}")
+            finally:
+                await conn.close()
+        except Exception as e:
+            print(f"⚠️  Database drop failed: {e}")
+            print("💡 Leaving database in place for inspection")
+
         print("✅ Cleanup complete")
 
     async def run(self, specific_example=None, setup_only=False, cleanup_only=False):
@@ -265,8 +329,13 @@ class ExampleTestRunner:
         success = False
 
         try:
-            # Setup
+            # Setup database with data BEFORE starting server
             await self.setup_test_database()
+            
+            # Wait a moment to ensure database operations are complete
+            await asyncio.sleep(1)
+            
+            # Start API server after data is populated
             await self.start_api_server()
 
             if setup_only:

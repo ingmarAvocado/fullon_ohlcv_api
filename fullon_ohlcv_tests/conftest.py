@@ -5,43 +5,47 @@ This module provides test fixtures and configuration for parallel test execution
 Each test file gets its own database to enable safe parallel execution.
 """
 
+import asyncio
 import os
+import uuid
+from collections.abc import AsyncGenerator
+
 import pytest
 import pytest_asyncio
-import asyncio
-import uuid
-from typing import AsyncGenerator, Dict, Optional
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy import text
 import redis
-
 from fullon_ohlcv.utils.config import config
 from fullon_ohlcv.utils.logger import get_logger
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 logger = get_logger(__name__)
 
 # Store database names for cleanup
-_test_databases: Dict[str, str] = {}
+_test_databases: dict[str, str] = {}
 
 
 def get_test_db_name(request) -> str:
     """
     Generate a unique test database name for each test file.
-    
+
     Format: fullon_test_{test_file}_{random_suffix}
     """
     # Get the test file name without extension
-    test_file = os.path.basename(request.node.fspath).replace('.py', '')
-    
+    test_file = os.path.basename(request.node.fspath).replace(".py", "")
+
     # Generate unique suffix to avoid conflicts in parallel runs
     unique_suffix = str(uuid.uuid4())[:8]
-    
+
     # Create database name
     db_name = f"fullon_test_{test_file}_{unique_suffix}"
-    
+
     # Store for cleanup
     _test_databases[request.node.nodeid] = db_name
-    
+
     return db_name
 
 
@@ -52,38 +56,38 @@ async def create_test_database(db_name: str) -> bool:
         f"postgresql+asyncpg://{config.database.user}:{config.database.password}@"
         f"{config.database.host}:{config.database.port}/postgres"
     )
-    
+
     engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
-    
+
     try:
         async with engine.begin() as conn:
             # Drop if exists (for reruns)
             await conn.execute(text(f"DROP DATABASE IF EXISTS {db_name}"))
-            
+
             # Create new database
             await conn.execute(text(f"CREATE DATABASE {db_name}"))
             logger.info(f"Created test database: {db_name}")
-        
+
         await engine.dispose()
-        
+
         # Connect to new database and add TimescaleDB
         db_url = (
             f"postgresql+asyncpg://{config.database.user}:{config.database.password}@"
             f"{config.database.host}:{config.database.port}/{db_name}"
         )
-        
+
         engine = create_async_engine(db_url)
-        
+
         async with engine.begin() as conn:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb"))
             logger.info(f"Added TimescaleDB extension to: {db_name}")
-        
+
         await engine.dispose()
         return True
-        
+
     except Exception as e:
         logger.error(f"Failed to create test database {db_name}: {e}")
-        if 'engine' in locals():
+        if "engine" in locals():
             await engine.dispose()
         return False
 
@@ -94,24 +98,28 @@ async def drop_test_database(db_name: str) -> bool:
         f"postgresql+asyncpg://{config.database.user}:{config.database.password}@"
         f"{config.database.host}:{config.database.port}/postgres"
     )
-    
+
     engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
-    
+
     try:
         async with engine.begin() as conn:
             # Terminate connections
-            await conn.execute(text(f"""
+            await conn.execute(
+                text(
+                    f"""
                 SELECT pg_terminate_backend(pid)
                 FROM pg_stat_activity
                 WHERE datname = '{db_name}' AND pid <> pg_backend_pid()
-            """))
-            
+            """
+                )
+            )
+
             # Drop database
             await conn.execute(text(f"DROP DATABASE IF EXISTS {db_name}"))
             logger.info(f"Dropped test database: {db_name}")
-        
+
         return True
-        
+
     except Exception as e:
         logger.error(f"Failed to drop test database {db_name}: {e}")
         return False
@@ -125,13 +133,14 @@ def event_loop_policy():
     # Install uvloop for high-performance testing
     try:
         import uvloop
+
         uvloop.install()
         logger.info("uvloop installed for test event loops")
     except ImportError:
         logger.debug("uvloop not available, using default asyncio for tests")
     except Exception as e:
         logger.warning(f"Failed to install uvloop for tests: {e}")
-    
+
     return asyncio.get_event_loop_policy()
 
 
@@ -144,19 +153,22 @@ def event_loop(request):
     loop.close()
 
 
-
-
 class TestConfig:
     """Test-specific configuration that can be modified per test."""
+
     def __init__(self, db_name: str):
-        self.database = type('obj', (object,), {
-            'host': config.database.host,
-            'port': config.database.port,
-            'user': config.database.user,
-            'password': config.database.password,
-            'name': db_name,
-            'test_name': db_name
-        })
+        self.database = type(
+            "obj",
+            (object,),
+            {
+                "host": config.database.host,
+                "port": config.database.port,
+                "user": config.database.user,
+                "password": config.database.password,
+                "name": db_name,
+                "test_name": db_name,
+            },
+        )
         self.logging = config.logging
 
 
@@ -167,26 +179,26 @@ async def test_db_name(request) -> str:
 
 
 @pytest_asyncio.fixture(scope="module")
-async def test_db(test_db_name: str) -> AsyncGenerator[Dict, None]:
+async def test_db(test_db_name: str) -> AsyncGenerator[dict, None]:
     """
     Create a unique test database for each test module.
-    
+
     Returns a dict with database configuration instead of an engine
     to avoid event loop issues.
     """
     # Create the test database
     success = await create_test_database(test_db_name)
     assert success, f"Failed to create test database: {test_db_name}"
-    
+
     # Return configuration dict
     db_config = {
         "host": config.database.host,
         "port": config.database.port,
         "database": test_db_name,
         "user": config.database.user,
-        "password": config.database.password
+        "password": config.database.password,
     }
-    
+
     try:
         yield db_config
     finally:
@@ -195,21 +207,19 @@ async def test_db(test_db_name: str) -> AsyncGenerator[Dict, None]:
 
 
 @pytest_asyncio.fixture
-async def db_session(test_db: Dict) -> AsyncGenerator[AsyncSession, None]:
+async def db_session(test_db: dict) -> AsyncGenerator[AsyncSession, None]:
     """Create a new async database session for a test."""
     db_url = (
         f"postgresql+asyncpg://{test_db['user']}:{test_db['password']}@"
         f"{test_db['host']}:{test_db['port']}/{test_db['database']}"
     )
-    
+
     engine = create_async_engine(db_url, pool_pre_ping=True)
-    
+
     session_factory = async_sessionmaker(
-        bind=engine,
-        class_=AsyncSession,
-        expire_on_commit=False
+        bind=engine, class_=AsyncSession, expire_on_commit=False
     )
-    
+
     async with session_factory() as session:
         try:
             yield session
@@ -219,15 +229,15 @@ async def db_session(test_db: Dict) -> AsyncGenerator[AsyncSession, None]:
             raise
         finally:
             await session.close()
-    
+
     await engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="module")
-async def clean_test_schemas(test_db: Dict):
+async def clean_test_schemas(test_db: dict):
     """
     Ensure a clean database state for each test module.
-    
+
     This fixture drops all schemas except system schemas at the start
     and end of each test module.
     """
@@ -235,57 +245,65 @@ async def clean_test_schemas(test_db: Dict):
         f"postgresql+asyncpg://{test_db['user']}:{test_db['password']}@"
         f"{test_db['host']}:{test_db['port']}/{test_db['database']}"
     )
-    
+
     engine = create_async_engine(db_url)
-    
+
     # Clean before tests
     async with engine.begin() as conn:
         # Get all non-system schemas
-        result = await conn.execute(text("""
-            SELECT schema_name 
-            FROM information_schema.schemata 
-            WHERE schema_name NOT IN ('public', 'pg_catalog', 'information_schema', 
+        result = await conn.execute(
+            text(
+                """
+            SELECT schema_name
+            FROM information_schema.schemata
+            WHERE schema_name NOT IN ('public', 'pg_catalog', 'information_schema',
                                      'timescaledb_internal', '_timescaledb_catalog',
                                      '_timescaledb_config', '_timescaledb_cache',
                                      '_timescaledb_functions', 'timescaledb_information',
                                      'timescaledb_experimental', 'toolkit_experimental')
             AND schema_name NOT LIKE 'pg_%'
             AND schema_name NOT LIKE '_timescaledb%'
-        """))
-        
+        """
+            )
+        )
+
         schemas = [row[0] for row in result]
-        
+
         # Drop all user schemas
         for schema in schemas:
             await conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
             logger.debug(f"Dropped schema before tests: {schema}")
-    
+
     await engine.dispose()
-    
+
     yield
-    
+
     # Clean after tests
     engine = create_async_engine(db_url)
     async with engine.begin() as conn:
-        result = await conn.execute(text("""
-            SELECT schema_name 
-            FROM information_schema.schemata 
-            WHERE schema_name NOT IN ('public', 'pg_catalog', 'information_schema', 
+        result = await conn.execute(
+            text(
+                """
+            SELECT schema_name
+            FROM information_schema.schemata
+            WHERE schema_name NOT IN ('public', 'pg_catalog', 'information_schema',
                                      'timescaledb_internal', '_timescaledb_catalog',
                                      '_timescaledb_config', '_timescaledb_cache',
                                      '_timescaledb_functions', 'timescaledb_information',
                                      'timescaledb_experimental', 'toolkit_experimental')
             AND schema_name NOT LIKE 'pg_%'
             AND schema_name NOT LIKE '_timescaledb%'
-        """))
-        
+        """
+            )
+        )
+
         schemas = [row[0] for row in result]
-        
+
         # Drop all user schemas
         for schema in schemas:
             await conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
             logger.debug(f"Dropped schema after tests: {schema}")
-    
+
     await engine.dispose()
 
 
@@ -304,31 +322,27 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )
-    config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests"
-    )
-    config.addinivalue_line(
-        "markers", "unit: marks tests as unit tests"
-    )
+    config.addinivalue_line("markers", "integration: marks tests as integration tests")
+    config.addinivalue_line("markers", "unit: marks tests as unit tests")
 
 
 @pytest.fixture(autouse=True)
 def reset_sqlalchemy_models():
     """
     Reset SQLAlchemy model configuration between tests.
-    
+
     This prevents model state from leaking between tests.
     """
-    from fullon_ohlcv.models import Trade, Candle
-    
+    from fullon_ohlcv.models import Candle, Trade
+
     # Reset model configuration
     Trade._exchange = None
     Trade._symbol = None
     Candle._exchange = None
     Candle._symbol = None
-    
+
     yield
-    
+
     # Cleanup after test
     Trade._exchange = None
     Trade._symbol = None
@@ -339,17 +353,17 @@ def reset_sqlalchemy_models():
 def get_redis_db_for_worker(worker_id: str) -> int:
     """
     Get a Redis database number based on worker ID.
-    
+
     Args:
         worker_id: pytest-xdist worker ID (e.g., 'gw0', 'gw1', 'master')
-        
+
     Returns:
         Redis database number (1-15 for tests, 0 reserved for production)
     """
     if worker_id == "master":
         # Running without pytest-xdist
         return 1
-    
+
     # Extract worker number from ID like 'gw0', 'gw1', etc.
     try:
         worker_num = int(worker_id[2:])
@@ -364,7 +378,7 @@ def get_redis_db_for_worker(worker_id: str) -> int:
 def redis_test_db(worker_id) -> int:
     """
     Get Redis database number for this test worker.
-    
+
     Returns:
         Redis database number for isolation
     """
@@ -375,23 +389,23 @@ def redis_test_db(worker_id) -> int:
 async def redis_cache_db(redis_test_db: int) -> AsyncGenerator[int, None]:
     """
     Provide a clean Redis database for cache testing.
-    
+
     Yields:
         Redis database number
     """
     # Clear the Redis database before use
     redis_client = redis.from_url(
         f"redis://{config.redis.host}:{config.redis.port}/{redis_test_db}",
-        decode_responses=True
+        decode_responses=True,
     )
-    
+
     try:
         # Clear the database
         redis_client.flushdb()
         logger.debug(f"Cleared Redis test database {redis_test_db}")
-        
+
         yield redis_test_db
-        
+
     finally:
         # Clear again after test
         redis_client.flushdb()
@@ -402,20 +416,20 @@ async def redis_cache_db(redis_test_db: int) -> AsyncGenerator[int, None]:
 def cache_enabled_config(redis_test_db: int):
     """
     Override cache configuration for testing.
-    
+
     Returns:
         Modified config with cache enabled and test Redis DB
     """
     # Save original values
     original_enabled = config.redis.cache_enabled
     original_db = config.redis.db
-    
+
     # Enable cache and set test database
     config.redis.cache_enabled = True
     config.redis.db = redis_test_db
-    
+
     yield config
-    
+
     # Restore original values
     config.redis.cache_enabled = original_enabled
     config.redis.db = original_db
@@ -425,17 +439,17 @@ def cache_enabled_config(redis_test_db: int):
 def cache_disabled_config():
     """
     Override cache configuration to disable caching.
-    
+
     Returns:
         Modified config with cache disabled
     """
     # Save original value
     original_enabled = config.redis.cache_enabled
-    
+
     # Disable cache
     config.redis.cache_enabled = False
-    
+
     yield config
-    
+
     # Restore original value
     config.redis.cache_enabled = original_enabled

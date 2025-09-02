@@ -6,118 +6,107 @@ using real test databases instead of mocking. Each test file gets its own databa
 to enable safe parallel execution.
 """
 
-import os
-import pytest
-import pytest_asyncio
 import asyncio
+import os
 import uuid
 from collections.abc import AsyncGenerator, Generator
-from typing import Dict, Optional
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy import text
 
+import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
-from fullon_ohlcv_api import FullonOhlcvGateway
+import arrow
 
 # Import fullon_ohlcv dependencies
 from fullon_ohlcv.utils.config import config
 from fullon_ohlcv.utils.logger import get_logger
+from fullon_ohlcv_api import FullonOhlcvGateway
+from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 logger = get_logger(__name__)
 
 # Store database names for cleanup
-_test_databases: Dict[str, str] = {}
+_test_databases: dict[str, str] = {}
 
 
 def get_test_db_name(request) -> str:
     """
     Generate a unique test database name for each test file.
-    
+
     Format: fullon_api_test_{test_file}_{random_suffix}
     """
     # Get the test file name without extension
-    test_file = os.path.basename(request.node.fspath).replace('.py', '')
-    
+    test_file = os.path.basename(request.node.fspath).replace(".py", "")
+
     # Generate unique suffix to avoid conflicts in parallel runs
     unique_suffix = str(uuid.uuid4())[:8]
-    
+
     # Create database name
     db_name = f"fullon_api_test_{test_file}_{unique_suffix}"
-    
+
     # Store for cleanup
     _test_databases[request.node.nodeid] = db_name
-    
+
     return db_name
 
 
 async def create_test_database(db_name: str) -> bool:
-    """Create a test database with TimescaleDB extension."""
-    # Connect to postgres database to create the test database
+    """Create a test database with TimescaleDB extension (isolated per module)."""
     admin_url = (
         f"postgresql+asyncpg://{config.database.user}:{config.database.password}@"
         f"{config.database.host}:{config.database.port}/postgres"
     )
-    
+
     engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
-    
     try:
         async with engine.begin() as conn:
-            # Drop if exists (for reruns)
             await conn.execute(text(f"DROP DATABASE IF EXISTS {db_name}"))
-            
-            # Create new database
             await conn.execute(text(f"CREATE DATABASE {db_name}"))
             logger.info(f"Created test database: {db_name}")
-        
+    finally:
         await engine.dispose()
-        
-        # Connect to new database and add TimescaleDB
-        db_url = (
-            f"postgresql+asyncpg://{config.database.user}:{config.database.password}@"
-            f"{config.database.host}:{config.database.port}/{db_name}"
-        )
-        
-        engine = create_async_engine(db_url)
-        
+
+    # Enable TimescaleDB in the new database
+    db_url = (
+        f"postgresql+asyncpg://{config.database.user}:{config.database.password}@"
+        f"{config.database.host}:{config.database.port}/{db_name}"
+    )
+    engine = create_async_engine(db_url)
+    try:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb"))
-            logger.info(f"Added TimescaleDB extension to: {db_name}")
-        
-        await engine.dispose()
+            logger.info(f"Enabled timescaledb extension in: {db_name}")
         return True
-        
     except Exception as e:
-        logger.error(f"Failed to create test database {db_name}: {e}")
-        if 'engine' in locals():
-            await engine.dispose()
+        logger.error(f"Failed to enable timescaledb in {db_name}: {e}")
         return False
+    finally:
+        await engine.dispose()
 
 
 async def drop_test_database(db_name: str) -> bool:
-    """Drop a test database."""
+    """Drop a test database, terminating active connections."""
     admin_url = (
         f"postgresql+asyncpg://{config.database.user}:{config.database.password}@"
         f"{config.database.host}:{config.database.port}/postgres"
     )
-    
+
     engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
-    
     try:
         async with engine.begin() as conn:
-            # Terminate connections
-            await conn.execute(text(f"""
-                SELECT pg_terminate_backend(pid)
-                FROM pg_stat_activity
-                WHERE datname = '{db_name}' AND pid <> pg_backend_pid()
-            """))
-            
-            # Drop database
+            await conn.execute(
+                text(
+                    f"""
+                    SELECT pg_terminate_backend(pid)
+                    FROM pg_stat_activity
+                    WHERE datname = '{db_name}' AND pid <> pg_backend_pid()
+                    """
+                )
+            )
             await conn.execute(text(f"DROP DATABASE IF EXISTS {db_name}"))
             logger.info(f"Dropped test database: {db_name}")
-        
         return True
-        
     except Exception as e:
         logger.error(f"Failed to drop test database {db_name}: {e}")
         return False
@@ -131,13 +120,14 @@ def event_loop_policy():
     # Install uvloop for high-performance testing
     try:
         import uvloop
+
         uvloop.install()
         logger.info("uvloop installed for test event loops")
     except ImportError:
         logger.debug("uvloop not available, using default asyncio for tests")
     except Exception as e:
         logger.warning(f"Failed to install uvloop for tests: {e}")
-    
+
     return asyncio.get_event_loop_policy()
 
 
@@ -152,15 +142,20 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 
 class TestConfig:
     """Test-specific configuration that can be modified per test."""
+
     def __init__(self, db_name: str):
-        self.database = type('obj', (object,), {
-            'host': config.database.host,
-            'port': config.database.port,
-            'user': config.database.user,
-            'password': config.database.password,
-            'name': db_name,
-            'test_name': db_name
-        })
+        self.database = type(
+            "obj",
+            (object,),
+            {
+                "host": config.database.host,
+                "port": config.database.port,
+                "user": config.database.user,
+                "password": config.database.password,
+                "name": db_name,
+                "test_name": db_name,
+            },
+        )
         self.logging = config.logging
 
 
@@ -171,97 +166,35 @@ async def test_db_name(request) -> str:
 
 
 @pytest_asyncio.fixture(scope="module")
-async def test_db(test_db_name: str) -> AsyncGenerator[Dict, None]:
+async def test_db(test_db_name: str) -> AsyncGenerator[dict, None]:
     """
     Create a unique test database for each test module.
-    
+
     Returns a dict with database configuration instead of an engine
     to avoid event loop issues.
     """
-    # Create the test database
+    # Create an isolated database per module with TimescaleDB enabled
     success = await create_test_database(test_db_name)
     assert success, f"Failed to create test database: {test_db_name}"
-    
-    # Return configuration dict
+
     db_config = {
         "host": config.database.host,
         "port": config.database.port,
         "database": test_db_name,
         "user": config.database.user,
-        "password": config.database.password
+        "password": config.database.password,
     }
-    
+
     try:
         yield db_config
     finally:
-        # Cleanup
         await drop_test_database(test_db_name)
 
 
 @pytest_asyncio.fixture(scope="module")
-async def clean_test_schemas(test_db: Dict):
-    """
-    Ensure a clean database state for each test module.
-    
-    This fixture drops all schemas except system schemas at the start
-    and end of each test module.
-    """
-    db_url = (
-        f"postgresql+asyncpg://{test_db['user']}:{test_db['password']}@"
-        f"{test_db['host']}:{test_db['port']}/{test_db['database']}"
-    )
-    
-    engine = create_async_engine(db_url)
-    
-    # Clean before tests
-    async with engine.begin() as conn:
-        # Get all non-system schemas
-        result = await conn.execute(text("""
-            SELECT schema_name 
-            FROM information_schema.schemata 
-            WHERE schema_name NOT IN ('public', 'pg_catalog', 'information_schema', 
-                                     'timescaledb_internal', '_timescaledb_catalog',
-                                     '_timescaledb_config', '_timescaledb_cache',
-                                     '_timescaledb_functions', 'timescaledb_information',
-                                     'timescaledb_experimental', 'toolkit_experimental')
-            AND schema_name NOT LIKE 'pg_%'
-            AND schema_name NOT LIKE '_timescaledb%'
-        """))
-        
-        schemas = [row[0] for row in result]
-        
-        # Drop all user schemas
-        for schema in schemas:
-            await conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
-            logger.debug(f"Dropped schema before tests: {schema}")
-    
-    await engine.dispose()
-    
+async def clean_test_schemas(test_db: dict):
+    """No-op schema cleaner (no direct DB access)."""
     yield
-    
-    # Clean after tests
-    engine = create_async_engine(db_url)
-    async with engine.begin() as conn:
-        result = await conn.execute(text("""
-            SELECT schema_name 
-            FROM information_schema.schemata 
-            WHERE schema_name NOT IN ('public', 'pg_catalog', 'information_schema', 
-                                     'timescaledb_internal', '_timescaledb_catalog',
-                                     '_timescaledb_config', '_timescaledb_cache',
-                                     '_timescaledb_functions', 'timescaledb_information',
-                                     'timescaledb_experimental', 'toolkit_experimental')
-            AND schema_name NOT LIKE 'pg_%'
-            AND schema_name NOT LIKE '_timescaledb%'
-        """))
-        
-        schemas = [row[0] for row in result]
-        
-        # Drop all user schemas
-        for schema in schemas:
-            await conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
-            logger.debug(f"Dropped schema after tests: {schema}")
-    
-    await engine.dispose()
 
 
 @pytest.fixture
@@ -273,20 +206,20 @@ def anyio_backend():
 @pytest.fixture(autouse=True)
 def reset_sqlalchemy_models():
     """
-    Reset SQLAlchemy model configuration between tests.
-    
+    Reset fullon_ohlcv model configuration between tests.
+
     This prevents model state from leaking between tests.
     """
-    from fullon_ohlcv.models import Trade, Candle
-    
+    from fullon_ohlcv.models import Candle, Trade
+
     # Reset model configuration
     Trade._exchange = None
     Trade._symbol = None
     Candle._exchange = None
     Candle._symbol = None
-    
+
     yield
-    
+
     # Cleanup after test
     Trade._exchange = None
     Trade._symbol = None
@@ -318,10 +251,60 @@ def client(app) -> TestClient:
 
 
 @pytest.fixture
+def prefixed_client() -> TestClient:
+    """Create a test client using a gateway with a URL prefix."""
+    gateway = FullonOhlcvGateway(
+        title="Test OHLCV API",
+        description="Test instance of fullon_ohlcv_api with prefix",
+        version="0.1.0-test",
+        prefix="/ohlcv",
+    )
+    app = gateway.get_app()
+    return TestClient(app)
+
+
+@pytest.fixture
 async def async_client(app) -> AsyncGenerator[AsyncClient, None]:
     """Create an async test client for asynchronous testing."""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    # httpx 0.27+ requires ASGITransport instead of the deprecated `app` arg
+    import httpx
+
+    transport = httpx.ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+@pytest.fixture
+def sample_trades_bulk():
+    """Provide a small set of sample trades in API response shape."""
+    from tests.factories import create_api_trade_list
+
+    trades = create_api_trade_list(count=2, exchange="binance", symbol="BTC/USDT")
+    return {
+        "trades": [
+            {
+                "timestamp": t.timestamp.isoformat(),
+                "price": float(t.price),
+                "volume": float(t.volume),
+                "side": t.side,
+                "type": t.type,
+            }
+            for t in trades
+        ]
+    }
+
+@pytest.fixture
+def sample_candle_data():
+    """Provide a single sample candle in API response shape."""
+    from datetime import UTC, datetime
+
+    return {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "open": 45000.0,
+        "high": 45100.0,
+        "low": 44900.0,
+        "close": 45050.0,
+        "vol": 10.5,
+    }
 
 
 # Configure pytest-asyncio
@@ -333,29 +316,29 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )
-    config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests"
-    )
-    config.addinivalue_line(
-        "markers", "unit: marks tests as unit tests"
-    )
-    config.addinivalue_line(
-        "markers", "api: marks tests as API endpoint tests"
-    )
+    config.addinivalue_line("markers", "integration: marks tests as integration tests")
+    config.addinivalue_line("markers", "unit: marks tests as unit tests")
+    config.addinivalue_line("markers", "api: marks tests as API endpoint tests")
+    config.addinivalue_line("markers", "requires_timescale: tests require TimescaleDB functions")
+
+
+# NOTE: We do not skip Timescale-marked tests globally.
+# The per-module test_db fixture provisions a Timescale-enabled database,
+# so Timescale-dependent tests run against the correct environment.
 
 
 # Patch config for repository test support
 @pytest_asyncio.fixture
-async def config_with_test_db(test_db: Dict, monkeypatch):
+async def config_with_test_db(test_db: dict, monkeypatch):
     """
     Patch fullon_ohlcv config to use our test database.
-    
+
     This ensures all repository instances use the test database.
     """
-    # Patch the config
-    monkeypatch.setattr(config.database, 'test_name', test_db['database'])
-    monkeypatch.setattr(config.database, 'name', test_db['database'])
-    
+    # Point repositories at the isolated per-module database
+    monkeypatch.setattr(config.database, "test_name", test_db["database"], raising=False)
+    monkeypatch.setattr(config.database, "name", test_db["database"], raising=False)
+
     yield config
-    
+
     # Config cleanup is handled by monkeypatch automatically

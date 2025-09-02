@@ -1,0 +1,28 @@
+{
+  "name": "fullon_ohlcv_api",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "features": {
+    "ghcr.io/devcontainers/features/poetry:1": {}
+  },
+  "postCreateCommand": "poetry install && poetry run pre-commit install || true",
+  "forwardPorts": [8000],
+  "remoteUser": "vscode",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "ms-python.black-formatter",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "python.testing.pytestEnabled": true,
+        "python.testing.cwd": "${workspaceFolder}",
+        "python.formatting.provider": "none",
+        "python.analysis.typeCheckingMode": "strict"
+      }
+    }
+  }
+}
+

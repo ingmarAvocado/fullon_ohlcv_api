@@ -13,6 +13,14 @@ Usage:
 
 import os
 
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # python-dotenv not available, environment variables should be set externally
+    pass
+
 try:
     # Try relative import first (when imported as module)
     from .gateway import FullonOhlcvGateway
@@ -52,7 +60,16 @@ if __name__ == "__main__":
 
     # Configuration from environment
     host = os.getenv("API_HOST", "0.0.0.0")
-    port = int(os.getenv("API_PORT", "8000"))
+    # Enforce port >= 9000 (default 9000)
+    env_port = os.getenv("API_PORT")
+    try:
+        port = int(env_port) if env_port is not None else 9000
+    except ValueError:
+        print(f"⚠️  Invalid API_PORT '{env_port}'; using default 9000")
+        port = 9000
+    if port < 9000:
+        print(f"⚠️  API_PORT {port} is below 9000; using 9000")
+        port = 9000
     reload = os.getenv("API_RELOAD", "true").lower() == "true"
 
     print("🚀 Starting fullon_ohlcv_api standalone server")
