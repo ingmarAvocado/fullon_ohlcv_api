@@ -64,7 +64,7 @@ async def get_trade_repository(
         # Create repository in test mode for examples with isolated test data
         repo = TradeRepository(exchange, symbol, test=True)
         try:
-            # Enter async context manager (connection/setup)
+            # Enter async context manager (connection/setup + auto init_symbol)
             await repo.__aenter__()
         except Exception as e:
             logger.error(
@@ -133,7 +133,7 @@ async def get_candle_repository(
     try:
         # Create repository in test mode for examples with isolated test data
         repo = CandleRepository(exchange, symbol, test=True)
-        # Enter async context manager (connection/setup)
+        # Enter async context manager (connection/setup + auto init_symbol)
         await repo.__aenter__()
         logger.debug(
             "CandleRepository context entered", exchange=exchange, symbol=symbol
@@ -192,7 +192,7 @@ async def get_timeseries_repository(
     try:
         # Create repository in test mode for examples with isolated test data
         repo = TimeseriesRepository(exchange, symbol, test=True)
-        # Enter async context manager (connection/setup)
+        # Enter async context manager (connection/setup + auto init_symbol)
         await repo.__aenter__()
         logger.debug(
             "TimeseriesRepository context entered", exchange=exchange, symbol=symbol
