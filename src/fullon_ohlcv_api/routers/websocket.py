@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocketState
 from fullon_log import get_component_logger
 
 logger = get_component_logger("fullon.api.ohlcv.websocket")
@@ -76,8 +77,17 @@ class ConnectionManager:
 
     async def send_personal_message(self, message: str, websocket: WebSocket) -> None:
         """Send message to a specific WebSocket client."""
+        # Check if WebSocket is still connected before sending
+        if websocket.client_state != WebSocketState.CONNECTED:
+            logger.debug("Cannot send message - WebSocket not in CONNECTED state",
+                        state=websocket.client_state)
+            return
+
         try:
             await websocket.send_text(message)
+        except (RuntimeError, WebSocketDisconnect) as e:
+            # WebSocket already closed, just log at debug level
+            logger.debug("Cannot send message - WebSocket disconnected", error=str(e))
         except Exception as e:
             logger.error("Failed to send personal message", error=str(e))
 
@@ -161,6 +171,16 @@ async def websocket_ohlcv_endpoint(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         manager.disconnect(websocket)
         logger.info("WebSocket client disconnected normally")
+    except RuntimeError as e:
+        # Handle "WebSocket is not connected" errors during cleanup
+        if "not connected" in str(e).lower():
+            manager.disconnect(websocket)
+            logger.debug("WebSocket cleanup after disconnect", error=str(e))
+        else:
+            raise
+    except Exception as e:
+        logger.error("Unexpected WebSocket error", error=str(e))
+        manager.disconnect(websocket)
 
 
 async def handle_websocket_message(

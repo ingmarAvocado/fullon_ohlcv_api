@@ -32,15 +32,17 @@ async def main():
     print(f"API URL: {base_url}")
 
     async with aiohttp.ClientSession() as session:
-        exchange = "binance"
-        symbol = "BTC/USDT"
-        timeframe = "1m"
+        # Use exchange/symbol that matches demo data from fill_data_examples.py
+        exchange = "kraken"
+        symbol = "BTC/USDC"
+        timeframe = "1h"
 
         # Generate OHLCV from trade data
+        # Use a wider time range to capture demo data (which was filled in the past)
         try:
             url = f"{base_url}/api/timeseries/{exchange}/{symbol}/ohlcv"
             end_time = datetime.now(UTC)
-            start_time = end_time - timedelta(hours=1)
+            start_time = end_time - timedelta(days=7)  # 7 days to ensure we capture demo data
 
             params = {
                 "timeframe": timeframe,
@@ -66,14 +68,17 @@ async def main():
         except Exception as e:
             print(f"⚠️  Failed to get OHLCV aggregation: {e}")
 
-        # Try different timeframes
+        # Try different timeframes (using same wide time range)
         timeframes = ["5m", "15m", "1h"]
+        end_time_tf = datetime.now(UTC)
+        start_time_tf = end_time_tf - timedelta(days=7)  # Same 7-day range
+
         for tf in timeframes:
             try:
                 params = {
                     "timeframe": tf,
-                    "start_time": start_time.isoformat(),
-                    "end_time": end_time.isoformat(),
+                    "start_time": start_time_tf.isoformat(),
+                    "end_time": end_time_tf.isoformat(),
                     "limit": 5,
                 }
 

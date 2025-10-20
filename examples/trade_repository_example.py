@@ -33,8 +33,9 @@ def main():
     print("💹 Trade Repository API Example")
     print(f"API URL: {base_url}")
 
-    exchange = "binance"
-    symbol = "BTC/USDT"  # Use format that matches populated data
+    # Use exchange/symbol that matches demo data from fill_data_examples.py
+    exchange = "kraken"
+    symbol = "BTC/USDC"
 
     # Get recent trades
     try:

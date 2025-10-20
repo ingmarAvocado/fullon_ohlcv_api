@@ -10,11 +10,22 @@ import asyncio
 import os
 import uuid
 from collections.abc import AsyncGenerator, Generator
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
+from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 import arrow
+
+# Load .env file from project root BEFORE importing any fullon modules
+project_root = Path(__file__).parent.parent
+env_path = project_root / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
+else:
+    # Try loading from current directory as fallback
+    load_dotenv()
 
 # Import fullon_ohlcv dependencies
 from fullon_ohlcv.utils.config import config
@@ -53,9 +64,15 @@ def get_test_db_name(request) -> str:
 
 async def create_test_database(db_name: str) -> bool:
     """Create a test database with TimescaleDB extension (isolated per module)."""
+    # Use os.getenv directly like examples do - this ensures we get the right values
+    db_user = os.getenv("DB_USER", "fullon")
+    db_password = os.getenv("DB_PASSWORD", "fullon")
+    db_host = os.getenv("DB_HOST", "localhost")
+    db_port = os.getenv("DB_PORT", "5432")
+
     admin_url = (
-        f"postgresql+asyncpg://{config.database.user}:{config.database.password}@"
-        f"{config.database.host}:{config.database.port}/postgres"
+        f"postgresql+asyncpg://{db_user}:{db_password}@"
+        f"{db_host}:{db_port}/postgres"
     )
 
     engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
@@ -69,8 +86,8 @@ async def create_test_database(db_name: str) -> bool:
 
     # Enable TimescaleDB in the new database
     db_url = (
-        f"postgresql+asyncpg://{config.database.user}:{config.database.password}@"
-        f"{config.database.host}:{config.database.port}/{db_name}"
+        f"postgresql+asyncpg://{db_user}:{db_password}@"
+        f"{db_host}:{db_port}/{db_name}"
     )
     engine = create_async_engine(db_url)
     try:
@@ -87,9 +104,15 @@ async def create_test_database(db_name: str) -> bool:
 
 async def drop_test_database(db_name: str) -> bool:
     """Drop a test database, terminating active connections."""
+    # Use os.getenv directly like examples do
+    db_user = os.getenv("DB_USER", "fullon")
+    db_password = os.getenv("DB_PASSWORD", "fullon")
+    db_host = os.getenv("DB_HOST", "localhost")
+    db_port = os.getenv("DB_PORT", "5432")
+
     admin_url = (
-        f"postgresql+asyncpg://{config.database.user}:{config.database.password}@"
-        f"{config.database.host}:{config.database.port}/postgres"
+        f"postgresql+asyncpg://{db_user}:{db_password}@"
+        f"{db_host}:{db_port}/postgres"
     )
 
     engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
@@ -144,14 +167,15 @@ class TestConfig:
     """Test-specific configuration that can be modified per test."""
 
     def __init__(self, db_name: str):
+        # Use os.getenv directly for consistency
         self.database = type(
             "obj",
             (object,),
             {
-                "host": config.database.host,
-                "port": config.database.port,
-                "user": config.database.user,
-                "password": config.database.password,
+                "host": os.getenv("DB_HOST", "localhost"),
+                "port": int(os.getenv("DB_PORT", "5432")),
+                "user": os.getenv("DB_USER", "fullon"),
+                "password": os.getenv("DB_PASSWORD", "fullon"),
                 "name": db_name,
                 "test_name": db_name,
             },
@@ -177,12 +201,13 @@ async def test_db(test_db_name: str) -> AsyncGenerator[dict, None]:
     success = await create_test_database(test_db_name)
     assert success, f"Failed to create test database: {test_db_name}"
 
+    # Use os.getenv directly for consistency
     db_config = {
-        "host": config.database.host,
-        "port": config.database.port,
+        "host": os.getenv("DB_HOST", "localhost"),
+        "port": int(os.getenv("DB_PORT", "5432")),
         "database": test_db_name,
-        "user": config.database.user,
-        "password": config.database.password,
+        "user": os.getenv("DB_USER", "fullon"),
+        "password": os.getenv("DB_PASSWORD", "fullon"),
     }
 
     try:
@@ -336,8 +361,13 @@ async def config_with_test_db(test_db: dict, monkeypatch):
     This ensures all repository instances use the test database.
     """
     # Point repositories at the isolated per-module database
+    # Patch ALL database connection parameters to ensure proper connection
     monkeypatch.setattr(config.database, "test_name", test_db["database"], raising=False)
     monkeypatch.setattr(config.database, "name", test_db["database"], raising=False)
+    monkeypatch.setattr(config.database, "host", test_db["host"], raising=False)
+    monkeypatch.setattr(config.database, "port", test_db["port"], raising=False)
+    monkeypatch.setattr(config.database, "user", test_db["user"], raising=False)
+    monkeypatch.setattr(config.database, "password", test_db["password"], raising=False)
 
     yield config
 

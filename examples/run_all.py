@@ -4,6 +4,8 @@ Run All Examples - fullon_ohlcv_api
 
 Sets up test database, starts API server, runs all examples, then cleans up.
 Mirrors the fullon_ohlcv examples pattern.
+
+CRITICAL: This script sets environment variables BEFORE importing fullon modules.
 """
 
 import argparse
@@ -13,18 +15,26 @@ import signal
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
-from dotenv import load_dotenv
-
+# CRITICAL: Load .env FIRST, before ANY fullon imports
 try:
-    from fullon_ohlcv.utils import install_uvloop
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent.parent / ".env"
+    load_dotenv(env_path)
 except ImportError:
-    print("❌ fullon_ohlcv not available - cannot run examples")
-    sys.exit(1)
+    print("⚠️  python-dotenv not available")
+except Exception as e:
+    print(f"⚠️  Could not load .env: {e}")
 
-from fullon_log import get_component_logger
+# CRITICAL: Set test database names BEFORE importing fullon modules
+# This is done in __init__ of ExampleTestRunner, but we need to ensure
+# the pattern is followed throughout
 
-logger = get_component_logger("fullon.examples.run_all")
+# NOW safe to import fullon modules (but we'll delay until after env setup)
+# Note: install_uvloop will be called at the end of main()
+
+logger = None  # Will be initialized after environment is set
 
 
 class ExampleTestRunner:
@@ -40,42 +50,64 @@ class ExampleTestRunner:
     """
 
     def __init__(self):
-        # Load environment variables from the project root .env file
-        env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
-        load_dotenv(env_path)
+        # Environment already loaded at module level
         self.api_process = None
+
+        # Database names (dual database pattern) - SET THESE FIRST!
+        self.test_db_base = os.getenv("DB_TEST_NAME", "fullon_ohlcv_test").replace("_test", "")
+        self.test_db_orm = f"{self.test_db_base}_test_orm"
+        self.test_db_ohlcv = f"{self.test_db_base}_test_ohlcv"
+
+        # CRITICAL: Set environment variables BEFORE any fullon imports
+        os.environ["DB_NAME"] = self.test_db_orm
+        os.environ["DB_OHLCV_NAME"] = self.test_db_ohlcv
+        # fullon_ohlcv uses DB_TEST_NAME for test mode
+        os.environ["DB_TEST_NAME"] = self.test_db_ohlcv
+
+        # Now safe to import and initialize logger
+        global logger
+        if logger is None:
+            from fullon_log import get_component_logger
+            logger = get_component_logger("fullon.examples.run_all")
+        self.logger = logger
+
+        self.api_process = None
+        # Examples configuration
         self.examples = [
             "trade_repository_example.py",
             "candle_repository_example.py",
             "timeseries_repository_example.py",
             "websocket_live_ohlcv_example.py",
         ]
-
-        # Make examples available as property for CLI help
         self.available_examples = self.examples
 
-        # Test configuration
+        # API configuration
         self.api_host = os.getenv("API_HOST", "127.0.0.1")
-        # Enforce API port >= 9000 (default 9000)
         env_port = os.getenv("API_PORT")
         try:
             port = int(env_port) if env_port is not None else 9000
         except ValueError:
-            logger.warning("Invalid API_PORT '%s'; falling back to 9000", env_port)
+            self.logger.warning("Invalid API_PORT '%s'; falling back to 9000", env_port)
             port = 9000
         if port < 9000:
-            logger.info("API_PORT %s is below 9000; using 9000", port)
+            self.logger.info("API_PORT %s is below 9000; using 9000", port)
             port = 9000
         self.api_port = port
-        # Ensure child processes (server/examples) see the same port
         os.environ["API_PORT"] = str(self.api_port)
-        self.test_exchange = "binance"
-        self.test_symbols = ["BTC/USDT", "ETH/USDT"]
-        # Database names
-        self.test_db_name = os.getenv("DB_TEST_NAME", "fullon_ohlcv2_test")
+
+        # Test data configuration (matching fullon_ohlcv_service - NO BINANCE!)
+        self.test_exchanges = ["kraken", "bitmex", "hyperliquid"]
+        self.test_symbols = {
+            "kraken": ["BTC/USDC"],
+            "bitmex": ["BTC/USD:BTC"],
+            "hyperliquid": ["BTC/USDC:USDC"]
+        }
+
+        # Legacy compatibility
+        self.test_db_name = self.test_db_ohlcv
         if "test" not in self.test_db_name.lower():
-            logger.warning(
-                "DB_TEST_NAME '%s' does not look like a test database; examples may write to non-test DB",
+            self.logger.warning(
+                "DB_TEST_NAME '%s' does not look like a test database",
                 self.test_db_name,
             )
 
@@ -112,32 +144,47 @@ class ExampleTestRunner:
             await conn2.close()
 
     async def setup_test_database(self):
-        """Setup test database with realistic sample data - KISS approach."""
-        print("🗄️  Setting up test database with realistic market data...")
+        """Setup test databases using demo_data.py pattern."""
+        print("🗄️  Setting up test databases with demo data...")
 
         try:
-            # Ensure DB and extension
-            await self.ensure_timescale_database()
-            # Use the KISS approach that actually works
-            from fill_data_examples import ExampleDataFiller
-            filler = ExampleDataFiller(test_mode=True)
-            
-            print("🧹 Clearing any existing data...")
-            await filler.clear_all_data()
-            
-            print("📊 Filling database...")
-            success = await filler.fill_all_data()
-            
-            if success:
-                print("✅ Test database setup complete with realistic market data")
-            else:
-                print("⚠️  Database fill failed, but examples will still run")
-                print("💡 API will return valid empty responses where data is missing")
+            # Environment variables already set in __init__
+            # Verify they're set correctly
+            print(f"📊 Using test databases:")
+            print(f"   - ORM (DB_NAME): {os.getenv('DB_NAME')}")
+            print(f"   - OHLCV (DB_OHLCV_NAME): {os.getenv('DB_OHLCV_NAME')}")
+
+            # Import demo_data functions (environment already set, so safe)
+            from demo_data import (
+                create_dual_test_databases,
+                install_orm_schema,
+                install_demo_orm_data,
+                install_demo_ohlcv_data,
+            )
+
+            # Create both ORM and OHLCV test databases
+            print(f"📊 Creating dual test databases...")
+            orm_db, ohlcv_db = await create_dual_test_databases(self.test_db_base + "_test")
+
+            # Install ORM schema
+            print("📊 Installing ORM schema...")
+            await install_orm_schema(orm_db)
+
+            # Install demo ORM data (exchanges, symbols, users)
+            print("📊 Installing demo ORM data...")
+            await install_demo_orm_data(orm_db)
+
+            # Install demo OHLCV data (trades, candles)
+            print("📊 Installing demo OHLCV data...")
+            await install_demo_ohlcv_data(orm_db, ohlcv_db)
+
+            print("✅ Test databases setup complete with demo data")
 
         except Exception as e:
-            print(f"⚠️  Failed to setup test database: {e}")
-            print("💡 Examples will run without test data (API will return empty but valid responses)")
-            # Don't raise - let examples run even without data
+            print(f"❌ Failed to setup test databases: {e}")
+            import traceback
+            traceback.print_exc()
+            raise  # Raise to abort - can't run examples without databases
 
     async def start_api_server(self):
         """Start the API server for testing."""
@@ -153,17 +200,28 @@ class ExampleTestRunner:
 
             # Set test environment
             env = os.environ.copy()
-            # Use the test database name from environment or default
-            test_db_name = os.getenv("DB_TEST_NAME", "fullon_ohlcv2_test")
-            env["DB_TEST_NAME"] = test_db_name
+            # Set both ORM and OHLCV database names
+            env["DB_NAME"] = self.test_db_orm
+            env["DB_OHLCV_NAME"] = self.test_db_ohlcv
+            # CRITICAL: API server needs DB_TEST_NAME for test mode
+            env["DB_TEST_NAME"] = self.test_db_ohlcv
             env["API_HOST"] = self.api_host
             env["API_PORT"] = str(self.api_port)
 
-            # Start server process
+            # Debug: Print what we're setting
+            print(f"   DB_NAME={env['DB_NAME']}")
+            print(f"   DB_OHLCV_NAME={env['DB_OHLCV_NAME']}")
+            print(f"   DB_TEST_NAME={env['DB_TEST_NAME']}")
+
+            # Start server process (capture output for debugging)
+            import tempfile
+            self.server_log_file = tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.log')
+            print(f"   Server log: {self.server_log_file.name}")
+
             self.api_process = subprocess.Popen(
                 [sys.executable, server_path],
                 env=env,
-                stdout=subprocess.DEVNULL,
+                stdout=self.server_log_file,
                 stderr=subprocess.STDOUT,
             )
 
@@ -217,6 +275,17 @@ class ExampleTestRunner:
                 print("⚠️  Force killing API server...")
                 self.api_process.kill()
                 self.api_process.wait()
+
+            # Show server log if there were errors
+            if hasattr(self, 'server_log_file'):
+                self.server_log_file.seek(0)
+                log_content = self.server_log_file.read()
+                if 'error' in log_content.lower() or 'exception' in log_content.lower():
+                    print("\n🔍 Server errors detected:")
+                    print(log_content[-2000:])  # Last 2000 chars
+                self.server_log_file.close()
+                import os
+                os.unlink(self.server_log_file.name)
 
     async def run_example(self, example_file):
         """Run a single example."""
@@ -278,37 +347,22 @@ class ExampleTestRunner:
         return successful == len(results)
 
     async def cleanup(self):
-        """Cleanup test environment."""
+        """Cleanup test environment - drop both ORM and OHLCV databases."""
         print("\n🧹 Cleaning up...")
 
         # Stop API server
         self.stop_api_server()
 
-        # Optionally drop the whole test database
+        # Drop both test databases
         try:
-            import asyncpg
-            admin_user = os.getenv("DB_USER", "fullon")
-            admin_pass = os.getenv("DB_PASSWORD", "fullon")
-            host = os.getenv("DB_HOST", "localhost")
-            port = os.getenv("DB_PORT", "5432")
-            admin_dsn = f"postgresql://{admin_user}:{admin_pass}@{host}:{port}/postgres"
-            conn = await asyncpg.connect(admin_dsn)
-            try:
-                # terminate connections
-                await conn.execute(
-                    f"""
-                    SELECT pg_terminate_backend(pid)
-                    FROM pg_stat_activity
-                    WHERE datname = '{self.test_db_name}' AND pid <> pg_backend_pid()
-                    """
-                )
-                await conn.execute(f"DROP DATABASE IF EXISTS {self.test_db_name}")
-                print(f"✅ Dropped test database {self.test_db_name}")
-            finally:
-                await conn.close()
+            from demo_data import drop_dual_test_databases
+
+            await drop_dual_test_databases(self.test_db_orm, self.test_db_ohlcv)
+            print(f"✅ Dropped test databases")
+
         except Exception as e:
-            print(f"⚠️  Database drop failed: {e}")
-            print("💡 Leaving database in place for inspection")
+            print(f"⚠️  Database cleanup failed: {e}")
+            print("💡 Leaving databases in place for inspection")
 
         print("✅ Cleanup complete")
 
@@ -443,5 +497,11 @@ async def main():
 
 
 if __name__ == "__main__":
-    install_uvloop()
+    # Import and install uvloop for performance
+    try:
+        from fullon_ohlcv.utils import install_uvloop
+        install_uvloop()
+    except ImportError:
+        print("⚠️  fullon_ohlcv not available - running without uvloop")
+
     asyncio.run(main())

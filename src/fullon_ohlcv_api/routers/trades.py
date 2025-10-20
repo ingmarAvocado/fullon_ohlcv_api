@@ -7,9 +7,10 @@ specification defined by trade_repository_example.py.
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fullon_log import get_component_logger
 from fullon_ohlcv.repositories.ohlcv import TradeRepository  # type: ignore
+from sqlalchemy.exc import ProgrammingError
 
 from ..dependencies.database import get_trade_repository
 from ..models.responses import TradesResponse
@@ -62,41 +63,63 @@ async def get_trades_in_range(  # type: ignore[no-any-unimported]
         limit=limit,
     )
 
-    # Retrieve trades in range using fullon_ohlcv TradeRepository
-    trades = await repo.get_trades_in_range(
-        start_time=start_time, end_time=end_time, limit=limit
-    )
+    try:
+        # Retrieve trades in range using fullon_ohlcv TradeRepository
+        trades = await repo.get_trades_in_range(
+            start_time=start_time, end_time=end_time, limit=limit
+        )
 
-    # Convert trades to dict format for response
-    trades_data = [
-        {
-            "timestamp": trade.timestamp.isoformat(),
-            "price": float(trade.price),
-            "volume": float(trade.volume),
-            "side": trade.side,
-            "type": trade.type,
-        }
-        for trade in trades
-    ]
+        # Convert trades to dict format for response
+        trades_data = [
+            {
+                "timestamp": trade.timestamp.isoformat(),
+                "price": float(trade.price),
+                "volume": float(trade.volume),
+                "side": trade.side,
+                "type": trade.type,
+            }
+            for trade in trades
+        ]
 
-    logger.info(
-        "Retrieved trades in range",
-        exchange=exchange,
-        symbol=symbol,
-        count=len(trades_data),
-        start_time=start_time.isoformat(),
-        end_time=end_time.isoformat(),
-    )
+        logger.info(
+            "Retrieved trades in range",
+            exchange=exchange,
+            symbol=symbol,
+            count=len(trades_data),
+            start_time=start_time.isoformat(),
+            end_time=end_time.isoformat(),
+        )
 
-    return TradesResponse(
-        trades=trades_data,
-        count=len(trades_data),
-        exchange=exchange,
-        symbol=symbol,
-        start_time=start_time,
-        end_time=end_time,
-        limit=limit,
-    )
+        return TradesResponse(
+            trades=trades_data,
+            count=len(trades_data),
+            exchange=exchange,
+            symbol=symbol,
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+        )
+    except ProgrammingError as e:
+        # Handle SQL errors from non-existent tables/schemas
+        logger.error(
+            "Database error retrieving trades in range",
+            exchange=exchange,
+            symbol=symbol,
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=404,
+            detail=f"Exchange '{exchange}' or symbol '{symbol}' not found",
+        )
+    except Exception as e:
+        # Handle any other unexpected errors
+        logger.error(
+            "Unexpected error retrieving trades in range",
+            exchange=exchange,
+            symbol=symbol,
+            error=str(e),
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/{exchange}/{symbol:path}", response_model=TradesResponse)
 async def get_recent_trades(  # type: ignore[no-any-unimported]
@@ -125,32 +148,54 @@ async def get_recent_trades(  # type: ignore[no-any-unimported]
     """
     logger.info("Getting recent trades", exchange=exchange, symbol=symbol, limit=limit)
 
-    # Retrieve recent trades using fullon_ohlcv TradeRepository
-    trades = await repo.get_recent_trades(limit=limit)
+    try:
+        # Retrieve recent trades using fullon_ohlcv TradeRepository
+        trades = await repo.get_recent_trades(limit=limit)
 
-    # Convert trades to dict format for response
-    trades_data = [
-        {
-            "timestamp": trade.timestamp.isoformat(),
-            "price": float(trade.price),
-            "volume": float(trade.volume),
-            "side": trade.side,
-            "type": trade.type,
-        }
-        for trade in trades
-    ]
+        # Convert trades to dict format for response
+        trades_data = [
+            {
+                "timestamp": trade.timestamp.isoformat(),
+                "price": float(trade.price),
+                "volume": float(trade.volume),
+                "side": trade.side,
+                "type": trade.type,
+            }
+            for trade in trades
+        ]
 
-    logger.info(
-        "Retrieved recent trades",
-        exchange=exchange,
-        symbol=symbol,
-        count=len(trades_data),
-    )
+        logger.info(
+            "Retrieved recent trades",
+            exchange=exchange,
+            symbol=symbol,
+            count=len(trades_data),
+        )
 
-    return TradesResponse(
-        trades=trades_data,
-        count=len(trades_data),
-        exchange=exchange,
-        symbol=symbol,
-        limit=limit,
-    )
+        return TradesResponse(
+            trades=trades_data,
+            count=len(trades_data),
+            exchange=exchange,
+            symbol=symbol,
+            limit=limit,
+        )
+    except ProgrammingError as e:
+        # Handle SQL errors from non-existent tables/schemas
+        logger.error(
+            "Database error retrieving trades",
+            exchange=exchange,
+            symbol=symbol,
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=404,
+            detail=f"Exchange '{exchange}' or symbol '{symbol}' not found",
+        )
+    except Exception as e:
+        # Handle any other unexpected errors
+        logger.error(
+            "Unexpected error retrieving trades",
+            exchange=exchange,
+            symbol=symbol,
+            error=str(e),
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")

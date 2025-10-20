@@ -32,9 +32,10 @@ async def main():
     print(f"API URL: {base_url}")
 
     async with aiohttp.ClientSession() as session:
-        exchange = "binance"
-        symbol = "BTC/USDT"
-        timeframe = "1m"  # Use timeframe that matches populated data
+        # Use exchange/symbol that matches demo data from fill_data_examples.py
+        exchange = "kraken"
+        symbol = "BTC/USDC"
+        timeframe = "1h"  # Use timeframe that matches hourly candle data
 
         # Get recent candles
         try:

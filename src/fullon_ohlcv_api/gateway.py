@@ -35,7 +35,7 @@ class FullonOhlcvGateway:
         self,
         title: str = "fullon_ohlcv_api",
         description: str = "FastAPI Gateway for fullon_ohlcv OHLCV market data operations",
-        version: str = "0.1.0",
+        version: str = "0.2.0",
         prefix: str = "",
     ):
         """

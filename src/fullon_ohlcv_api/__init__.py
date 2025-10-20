@@ -45,4 +45,4 @@ def get_all_routers() -> list[APIRouter]:
 
 # Public API exports
 __all__ = ["FullonOhlcvGateway", "get_all_routers"]
-__version__ = "0.1.0"
+__version__ = "0.2.0"
