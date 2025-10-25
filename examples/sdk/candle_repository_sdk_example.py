@@ -6,8 +6,8 @@ Demonstrates candle data retrieval via the future fullon_ohlcv_sdk client.
 This is a goal-spec example: it shows intended SDK usage and outputs.
 """
 
-import os
 import asyncio
+import os
 from datetime import UTC, datetime, timedelta
 
 from dotenv import load_dotenv
@@ -47,7 +47,9 @@ async def main() -> None:
         candles = await client.get_candles(exchange, symbol, timeframe, limit=10)
         print(f"✅ Retrieved {len(candles)} recent {timeframe} candles")
         for i, c in enumerate(candles[:3]):
-            print(f"  Candle {i+1}: O:{c.open} H:{c.high} L:{c.low} C:{c.close} Vol:{c.vol}")
+            print(
+                f"  Candle {i+1}: O:{c.open} H:{c.high} L:{c.low} C:{c.close} Vol:{c.vol}"
+            )
 
         # Range (1 day)
         end_time = datetime.now(UTC)
@@ -61,4 +63,3 @@ async def main() -> None:
 if __name__ == "__main__":
     install_uvloop()
     asyncio.run(main())
-

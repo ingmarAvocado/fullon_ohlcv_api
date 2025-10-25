@@ -16,7 +16,6 @@ import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
-import arrow
 
 # Load .env file from project root BEFORE importing any fullon modules
 project_root = Path(__file__).parent.parent
@@ -71,8 +70,7 @@ async def create_test_database(db_name: str) -> bool:
     db_port = os.getenv("DB_PORT", "5432")
 
     admin_url = (
-        f"postgresql+asyncpg://{db_user}:{db_password}@"
-        f"{db_host}:{db_port}/postgres"
+        f"postgresql+asyncpg://{db_user}:{db_password}@" f"{db_host}:{db_port}/postgres"
     )
 
     engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
@@ -111,8 +109,7 @@ async def drop_test_database(db_name: str) -> bool:
     db_port = os.getenv("DB_PORT", "5432")
 
     admin_url = (
-        f"postgresql+asyncpg://{db_user}:{db_password}@"
-        f"{db_host}:{db_port}/postgres"
+        f"postgresql+asyncpg://{db_user}:{db_password}@" f"{db_host}:{db_port}/postgres"
     )
 
     engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
@@ -298,6 +295,7 @@ async def async_client(app) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
+
 @pytest.fixture
 def sample_trades_bulk():
     """Provide a small set of sample trades in API response shape."""
@@ -316,6 +314,7 @@ def sample_trades_bulk():
             for t in trades
         ]
     }
+
 
 @pytest.fixture
 def sample_candle_data():
@@ -344,7 +343,9 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "integration: marks tests as integration tests")
     config.addinivalue_line("markers", "unit: marks tests as unit tests")
     config.addinivalue_line("markers", "api: marks tests as API endpoint tests")
-    config.addinivalue_line("markers", "requires_timescale: tests require TimescaleDB functions")
+    config.addinivalue_line(
+        "markers", "requires_timescale: tests require TimescaleDB functions"
+    )
 
 
 # NOTE: We do not skip Timescale-marked tests globally.
@@ -362,7 +363,9 @@ async def config_with_test_db(test_db: dict, monkeypatch):
     """
     # Point repositories at the isolated per-module database
     # Patch ALL database connection parameters to ensure proper connection
-    monkeypatch.setattr(config.database, "test_name", test_db["database"], raising=False)
+    monkeypatch.setattr(
+        config.database, "test_name", test_db["database"], raising=False
+    )
     monkeypatch.setattr(config.database, "name", test_db["database"], raising=False)
     monkeypatch.setattr(config.database, "host", test_db["host"], raising=False)
     monkeypatch.setattr(config.database, "port", test_db["port"], raising=False)

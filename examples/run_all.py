@@ -14,12 +14,12 @@ import os
 import signal
 import subprocess
 import sys
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 # CRITICAL: Load .env FIRST, before ANY fullon imports
 try:
     from dotenv import load_dotenv
+
     env_path = Path(__file__).parent.parent / ".env"
     load_dotenv(env_path)
 except ImportError:
@@ -54,7 +54,9 @@ class ExampleTestRunner:
         self.api_process = None
 
         # Database names (dual database pattern) - SET THESE FIRST!
-        self.test_db_base = os.getenv("DB_TEST_NAME", "fullon_ohlcv_test").replace("_test", "")
+        self.test_db_base = os.getenv("DB_TEST_NAME", "fullon_ohlcv_test").replace(
+            "_test", ""
+        )
         self.test_db_orm = f"{self.test_db_base}_test_orm"
         self.test_db_ohlcv = f"{self.test_db_base}_test_ohlcv"
 
@@ -68,6 +70,7 @@ class ExampleTestRunner:
         global logger
         if logger is None:
             from fullon_log import get_component_logger
+
             logger = get_component_logger("fullon.examples.run_all")
         self.logger = logger
 
@@ -100,7 +103,7 @@ class ExampleTestRunner:
         self.test_symbols = {
             "kraken": ["BTC/USDC"],
             "bitmex": ["BTC/USD:BTC"],
-            "hyperliquid": ["BTC/USDC:USDC"]
+            "hyperliquid": ["BTC/USDC:USDC"],
         }
 
         # Legacy compatibility
@@ -135,7 +138,9 @@ class ExampleTestRunner:
             await conn.close()
 
         # Enable extension in target DB
-        db_dsn = f"postgresql://{admin_user}:{admin_pass}@{host}:{port}/{self.test_db_name}"
+        db_dsn = (
+            f"postgresql://{admin_user}:{admin_pass}@{host}:{port}/{self.test_db_name}"
+        )
         conn2 = await asyncpg.connect(db_dsn)
         try:
             await conn2.execute("CREATE EXTENSION IF NOT EXISTS timescaledb")
@@ -150,21 +155,23 @@ class ExampleTestRunner:
         try:
             # Environment variables already set in __init__
             # Verify they're set correctly
-            print(f"📊 Using test databases:")
+            print("📊 Using test databases:")
             print(f"   - ORM (DB_NAME): {os.getenv('DB_NAME')}")
             print(f"   - OHLCV (DB_OHLCV_NAME): {os.getenv('DB_OHLCV_NAME')}")
 
             # Import demo_data functions (environment already set, so safe)
             from demo_data import (
                 create_dual_test_databases,
-                install_orm_schema,
-                install_demo_orm_data,
                 install_demo_ohlcv_data,
+                install_demo_orm_data,
+                install_orm_schema,
             )
 
             # Create both ORM and OHLCV test databases
-            print(f"📊 Creating dual test databases...")
-            orm_db, ohlcv_db = await create_dual_test_databases(self.test_db_base + "_test")
+            print("📊 Creating dual test databases...")
+            orm_db, ohlcv_db = await create_dual_test_databases(
+                self.test_db_base + "_test"
+            )
 
             # Install ORM schema
             print("📊 Installing ORM schema...")
@@ -183,6 +190,7 @@ class ExampleTestRunner:
         except Exception as e:
             print(f"❌ Failed to setup test databases: {e}")
             import traceback
+
             traceback.print_exc()
             raise  # Raise to abort - can't run examples without databases
 
@@ -215,7 +223,10 @@ class ExampleTestRunner:
 
             # Start server process (capture output for debugging)
             import tempfile
-            self.server_log_file = tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.log')
+
+            self.server_log_file = tempfile.NamedTemporaryFile(
+                mode="w+", delete=False, suffix=".log"
+            )
             print(f"   Server log: {self.server_log_file.name}")
 
             self.api_process = subprocess.Popen(
@@ -244,8 +255,8 @@ class ExampleTestRunner:
     async def _wait_for_health(self, timeout_seconds: int = 10) -> bool:
         """Poll the /health endpoint until it responds or timeout."""
         import time
-        from urllib.request import urlopen
         from urllib.error import URLError
+        from urllib.request import urlopen
 
         deadline = time.time() + timeout_seconds
         url = f"http://{self.api_host}:{self.api_port}/health"
@@ -277,14 +288,15 @@ class ExampleTestRunner:
                 self.api_process.wait()
 
             # Show server log if there were errors
-            if hasattr(self, 'server_log_file'):
+            if hasattr(self, "server_log_file"):
                 self.server_log_file.seek(0)
                 log_content = self.server_log_file.read()
-                if 'error' in log_content.lower() or 'exception' in log_content.lower():
+                if "error" in log_content.lower() or "exception" in log_content.lower():
                     print("\n🔍 Server errors detected:")
                     print(log_content[-2000:])  # Last 2000 chars
                 self.server_log_file.close()
                 import os
+
                 os.unlink(self.server_log_file.name)
 
     async def run_example(self, example_file):
@@ -294,7 +306,7 @@ class ExampleTestRunner:
         try:
             # Get the path to the example file (should be in the same directory as run_all.py)
             example_path = os.path.join(os.path.dirname(__file__), example_file)
-            
+
             # Run the example
             result = subprocess.run(
                 [sys.executable, example_path],
@@ -358,7 +370,7 @@ class ExampleTestRunner:
             from demo_data import drop_dual_test_databases
 
             await drop_dual_test_databases(self.test_db_orm, self.test_db_ohlcv)
-            print(f"✅ Dropped test databases")
+            print("✅ Dropped test databases")
 
         except Exception as e:
             print(f"⚠️  Database cleanup failed: {e}")
@@ -385,10 +397,10 @@ class ExampleTestRunner:
         try:
             # Setup database with data BEFORE starting server
             await self.setup_test_database()
-            
+
             # Wait a moment to ensure database operations are complete
             await asyncio.sleep(1)
-            
+
             # Start API server after data is populated
             await self.start_api_server()
 
@@ -500,6 +512,7 @@ if __name__ == "__main__":
     # Import and install uvloop for performance
     try:
         from fullon_ohlcv.utils import install_uvloop
+
         install_uvloop()
     except ImportError:
         print("⚠️  fullon_ohlcv not available - running without uvloop")

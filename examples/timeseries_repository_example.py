@@ -42,7 +42,9 @@ async def main():
         try:
             url = f"{base_url}/api/timeseries/{exchange}/{symbol}/ohlcv"
             end_time = datetime.now(UTC)
-            start_time = end_time - timedelta(days=7)  # 7 days to ensure we capture demo data
+            start_time = end_time - timedelta(
+                days=7
+            )  # 7 days to ensure we capture demo data
 
             params = {
                 "timeframe": timeframe,

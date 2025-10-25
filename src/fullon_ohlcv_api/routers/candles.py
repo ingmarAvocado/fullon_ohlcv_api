@@ -68,7 +68,9 @@ def convert_timeframe_to_compression(timeframe: str) -> tuple[int, str]:
 # No Python aggregation helpers by design. Aggregation must occur in TimescaleDB.
 
 
-@router.get("/{exchange}/{symbol:path}/{timeframe}/range", response_model=CandlesResponse)
+@router.get(
+    "/{exchange}/{symbol:path}/{timeframe}/range", response_model=CandlesResponse
+)
 async def get_candles_in_range(  # type: ignore[no-any-unimported]
     exchange: str = Path(
         ..., description="Exchange name (e.g., 'binance', 'coinbase')"
@@ -116,7 +118,7 @@ async def get_candles_in_range(  # type: ignore[no-any-unimported]
         end_time=end_time.isoformat(),
     )
 
-    async with TimeseriesRepository(exchange, symbol, test=True) as ts_repo:
+    async with TimeseriesRepository(exchange, symbol) as ts_repo:
         tuples = await ts_repo.fetch_ohlcv(
             compression=compression,
             period=period,
@@ -129,7 +131,9 @@ async def get_candles_in_range(  # type: ignore[no-any-unimported]
 
     candles_data = [
         {
-            "timestamp": ts.datetime.isoformat() if hasattr(ts, "datetime") else ts.isoformat(),
+            "timestamp": (
+                ts.datetime.isoformat() if hasattr(ts, "datetime") else ts.isoformat()
+            ),
             "open": _f(o),
             "high": _f(h),
             "low": _f(l),
@@ -219,7 +223,7 @@ async def get_recent_candles(  # type: ignore[no-any-unimported]
     else:
         start_time = end_time.shift(hours=-24)
 
-    async with TimeseriesRepository(exchange, symbol, test=True) as ts_repo:
+    async with TimeseriesRepository(exchange, symbol) as ts_repo:
         tuples = await ts_repo.fetch_ohlcv(
             compression=compression,
             period=period,
@@ -235,7 +239,9 @@ async def get_recent_candles(  # type: ignore[no-any-unimported]
 
     candles_data = [
         {
-            "timestamp": ts.datetime.isoformat() if hasattr(ts, "datetime") else ts.isoformat(),
+            "timestamp": (
+                ts.datetime.isoformat() if hasattr(ts, "datetime") else ts.isoformat()
+            ),
             "open": _f(o),
             "high": _f(h),
             "low": _f(l),

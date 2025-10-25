@@ -5,7 +5,6 @@ This class provides the core functionality for integrating fullon_ohlcv
 with FastAPI for OHLCV market data operations via REST API.
 """
 
-
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fullon_log import get_component_logger

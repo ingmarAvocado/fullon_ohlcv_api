@@ -75,7 +75,9 @@ async def get_exchanges() -> dict[str, Any]:
 
 
 @router.get("/exchanges/{exchange}/info")
-async def get_exchange_info(exchange: str = Path(..., description="Exchange name")) -> dict[str, Any]:
+async def get_exchange_info(
+    exchange: str = Path(..., description="Exchange name")
+) -> dict[str, Any]:
     """Exchange info is not provided without DB catalog; return 404."""
     exchange_name = normalize_exchange_name(exchange)
     logger.info("Exchange info requested (not available)", exchange=exchange_name)
@@ -83,7 +85,9 @@ async def get_exchange_info(exchange: str = Path(..., description="Exchange name
 
 
 @router.get("/exchanges/{exchange}/status")
-async def get_exchange_status(exchange: str = Path(..., description="Exchange name")) -> dict[str, Any]:
+async def get_exchange_status(
+    exchange: str = Path(..., description="Exchange name")
+) -> dict[str, Any]:
     """
     Get health and status information for a specific exchange.
 
@@ -124,7 +128,9 @@ async def validate_exchange(
         HTTPException: 500 for database errors (validation never fails)
     """
     exchange_name = normalize_exchange_name(exchange)
-    logger.info("Exchange validate requested (no DB introspection)", exchange=exchange_name)
+    logger.info(
+        "Exchange validate requested (no DB introspection)", exchange=exchange_name
+    )
     return {
         "success": True,
         "message": f"Validation not performed for '{exchange_name}' in read-only mode",

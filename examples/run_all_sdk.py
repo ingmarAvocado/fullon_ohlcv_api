@@ -79,12 +79,14 @@ class SdkExampleTestRunner:
                 print("💡 API will return valid empty responses where data is missing")
         except Exception as e:
             print(f"⚠️  Failed to setup test database: {e}")
-            print("💡 SDK examples will run without test data (API may return empty responses)")
+            print(
+                "💡 SDK examples will run without test data (API may return empty responses)"
+            )
 
     async def _wait_for_health(self, timeout_seconds: int = 10) -> bool:
         import time
-        from urllib.request import urlopen
         from urllib.error import URLError
+        from urllib.request import urlopen
 
         deadline = time.time() + timeout_seconds
         url = f"http://{self.api_host}:{self.api_port}/health"
@@ -219,9 +221,13 @@ async def main() -> int:
         """,
     )
     parser.add_argument("--example", type=str, help="Run a specific SDK example file")
-    parser.add_argument("--setup-only", action="store_true", help="Setup and keep server running")
+    parser.add_argument(
+        "--setup-only", action="store_true", help="Setup and keep server running"
+    )
     parser.add_argument("--cleanup-only", action="store_true", help="Cleanup only")
-    parser.add_argument("--list", action="store_true", help="List available SDK examples")
+    parser.add_argument(
+        "--list", action="store_true", help="List available SDK examples"
+    )
     args = parser.parse_args()
 
     runner = SdkExampleTestRunner()
@@ -265,14 +271,21 @@ async def main() -> int:
 
     print("\n" + "=" * 50)
     if success:
-        print("🎉 All SDK examples passed!" if not args.example else f"🎉 {args.example} passed!")
+        print(
+            "🎉 All SDK examples passed!"
+            if not args.example
+            else f"🎉 {args.example} passed!"
+        )
         return 0
     else:
-        print("❌ Some SDK examples failed" if not args.example else f"❌ {args.example} failed")
+        print(
+            "❌ Some SDK examples failed"
+            if not args.example
+            else f"❌ {args.example} failed"
+        )
         return 1
 
 
 if __name__ == "__main__":
     install_uvloop()
     sys.exit(asyncio.run(main()))
-

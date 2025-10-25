@@ -136,7 +136,9 @@ def parse_symbol_components(symbol: str) -> tuple[str, str]:
 @router.get("/exchanges/{exchange}/symbols")
 async def get_exchange_symbols(
     exchange: str = Path(..., description="Exchange name"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of symbols to return"),
+    limit: int = Query(
+        100, ge=1, le=1000, description="Maximum number of symbols to return"
+    ),
     offset: int = Query(0, ge=0, description="Number of symbols to skip"),
 ) -> dict[str, Any]:
     """Return empty symbol list (no DB introspection)."""
@@ -178,7 +180,11 @@ async def get_symbol_info(
     """
     exchange_name = normalize_exchange_name(exchange)
     symbol_name = normalize_symbol_name(symbol)
-    logger.info("Symbol info requested (not available)", exchange=exchange_name, symbol=symbol_name)
+    logger.info(
+        "Symbol info requested (not available)",
+        exchange=exchange_name,
+        symbol=symbol_name,
+    )
     raise HTTPException(status_code=404, detail="Symbol info not available")
 
 
@@ -206,7 +212,11 @@ async def get_symbol_metadata(
     """
     exchange_name = normalize_exchange_name(exchange)
     symbol_name = normalize_symbol_name(symbol)
-    logger.info("Symbol metadata requested (not available)", exchange=exchange_name, symbol=symbol_name)
+    logger.info(
+        "Symbol metadata requested (not available)",
+        exchange=exchange_name,
+        symbol=symbol_name,
+    )
     raise HTTPException(status_code=404, detail="Symbol metadata not available")
 
 
@@ -238,7 +248,9 @@ async def search_symbols(
     exchange_filter = normalize_exchange_name(exchange) if exchange else None
 
     logger.info(
-        "Symbol search requested (no DB introspection)", query=search_query, exchange_filter=exchange_filter
+        "Symbol search requested (no DB introspection)",
+        query=search_query,
+        exchange_filter=exchange_filter,
     )
     return {
         "success": True,

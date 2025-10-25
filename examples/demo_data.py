@@ -25,6 +25,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 try:
     from dotenv import load_dotenv
+
     load_dotenv(project_root / ".env")
 except ImportError:
     print("⚠️  python-dotenv not available, make sure .env variables are set manually")
@@ -38,13 +39,13 @@ fullon_logger = get_component_logger("fullon.ohlcv_api.example.demo_data")
 
 
 class Colors:
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    END = '\033[0m'
-    BOLD = '\033[1m'
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    END = "\033[0m"
+    BOLD = "\033[1m"
 
 
 def print_success(msg: str):
@@ -71,13 +72,15 @@ def print_header(msg: str):
 
 def generate_test_db_name(worker_id: str = "") -> str:
     """Generate worker-aware test database name."""
-    base_name = os.getenv('DB_TEST_NAME', 'fullon_ohlcv_test')
+    base_name = os.getenv("DB_TEST_NAME", "fullon_ohlcv_test")
 
     if worker_id:
         return f"{base_name}_{worker_id}"
     else:
         # Fallback to random for manual/CLI usage
-        random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+        random_suffix = "".join(
+            random.choices(string.ascii_lowercase + string.digits, k=8)
+        )
         return f"{base_name}_{random_suffix}"
 
 
@@ -95,11 +98,7 @@ async def create_test_database(db_name: str) -> bool:
         password = os.getenv("DB_PASSWORD", "")
 
         conn = await asyncpg.connect(
-            host=host,
-            port=port,
-            user=user,
-            password=password,
-            database="postgres"
+            host=host, port=port, user=user, password=password, database="postgres"
         )
 
         try:
@@ -133,21 +132,20 @@ async def drop_test_database(db_name: str) -> bool:
         password = os.getenv("DB_PASSWORD", "")
 
         conn = await asyncpg.connect(
-            host=host,
-            port=port,
-            user=user,
-            password=password,
-            database="postgres"
+            host=host, port=port, user=user, password=password, database="postgres"
         )
 
         try:
             # Connection termination and database dropping require direct SQL
-            await conn.execute("""
+            await conn.execute(
+                """
                 SELECT pg_terminate_backend(pg_stat_activity.pid)
                 FROM pg_stat_activity
                 WHERE pg_stat_activity.datname = $1
                 AND pid <> pg_backend_pid()
-            """, db_name)
+            """,
+                db_name,
+            )
 
             await conn.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
 
@@ -173,7 +171,9 @@ async def create_dual_test_databases(base_name: str) -> tuple[str, str]:
     ohlcv_db_name = f"{base_name}_ohlcv"
 
     print_info(f"Creating dual test databases: {orm_db_name} + {ohlcv_db_name}")
-    fullon_logger.info(f"Creating dual test databases: orm={orm_db_name}, ohlcv={ohlcv_db_name}")
+    fullon_logger.info(
+        f"Creating dual test databases: orm={orm_db_name}, ohlcv={ohlcv_db_name}"
+    )
 
     # Create both databases
     orm_success = await create_test_database(orm_db_name)
@@ -181,7 +181,9 @@ async def create_dual_test_databases(base_name: str) -> tuple[str, str]:
 
     if orm_success and ohlcv_success:
         print_success("Both test databases created successfully")
-        fullon_logger.info(f"Dual test databases created: orm={orm_db_name}, ohlcv={ohlcv_db_name}")
+        fullon_logger.info(
+            f"Dual test databases created: orm={orm_db_name}, ohlcv={ohlcv_db_name}"
+        )
         return orm_db_name, ohlcv_db_name
     else:
         # Clean up if one failed
@@ -195,17 +197,23 @@ async def create_dual_test_databases(base_name: str) -> tuple[str, str]:
 async def drop_dual_test_databases(orm_db_name: str, ohlcv_db_name: str) -> bool:
     """Drop both fullon_orm and fullon_ohlcv test databases."""
     print_info(f"Dropping dual test databases: {orm_db_name} + {ohlcv_db_name}")
-    fullon_logger.info(f"Dropping dual test databases: orm={orm_db_name}, ohlcv={ohlcv_db_name}")
+    fullon_logger.info(
+        f"Dropping dual test databases: orm={orm_db_name}, ohlcv={ohlcv_db_name}"
+    )
 
     orm_success = await drop_test_database(orm_db_name)
     ohlcv_success = await drop_test_database(ohlcv_db_name)
 
     if orm_success and ohlcv_success:
         print_success("Both test databases dropped successfully")
-        fullon_logger.info(f"Dual test databases dropped: orm={orm_db_name}, ohlcv={ohlcv_db_name}")
+        fullon_logger.info(
+            f"Dual test databases dropped: orm={orm_db_name}, ohlcv={ohlcv_db_name}"
+        )
         return True
     else:
-        print_warning(f"Some databases failed to drop: orm={orm_success}, ohlcv={ohlcv_success}")
+        print_warning(
+            f"Some databases failed to drop: orm={orm_success}, ohlcv={ohlcv_success}"
+        )
         return False
 
 
@@ -215,18 +223,21 @@ async def install_orm_schema(orm_db_name: str) -> bool:
 
     try:
         # Temporarily update DATABASE_URL to point to test database
-        original_db_url = os.environ.get('DATABASE_URL')
+        original_db_url = os.environ.get("DATABASE_URL")
 
         host = os.getenv("DB_HOST", "localhost")
         port = int(os.getenv("DB_PORT", "5432"))
         user = os.getenv("DB_USER", "postgres")
         password = os.getenv("DB_PASSWORD", "")
 
-        test_db_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{orm_db_name}"
-        os.environ['DATABASE_URL'] = test_db_url
+        test_db_url = (
+            f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{orm_db_name}"
+        )
+        os.environ["DATABASE_URL"] = test_db_url
 
         # Initialize fullon_orm schema
         from fullon_orm import init_db
+
         await init_db()
 
         print_success("fullon_orm schema installed successfully")
@@ -234,9 +245,9 @@ async def install_orm_schema(orm_db_name: str) -> bool:
 
         # Restore original DATABASE_URL
         if original_db_url:
-            os.environ['DATABASE_URL'] = original_db_url
+            os.environ["DATABASE_URL"] = original_db_url
         else:
-            os.environ.pop('DATABASE_URL', None)
+            os.environ.pop("DATABASE_URL", None)
 
         return True
 
@@ -253,18 +264,20 @@ async def install_demo_orm_data(orm_db_name: str) -> bool:
 
     try:
         # Temporarily update DATABASE_URL
-        original_db_url = os.environ.get('DATABASE_URL')
+        original_db_url = os.environ.get("DATABASE_URL")
 
         host = os.getenv("DB_HOST", "localhost")
         port = int(os.getenv("DB_PORT", "5432"))
         user = os.getenv("DB_USER", "postgres")
         password = os.getenv("DB_PASSWORD", "")
 
-        test_db_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{orm_db_name}"
-        os.environ['DATABASE_URL'] = test_db_url
+        test_db_url = (
+            f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{orm_db_name}"
+        )
+        os.environ["DATABASE_URL"] = test_db_url
 
         from fullon_orm import DatabaseContext
-        from fullon_orm.models import User, Exchange, Symbol, CatExchange
+        from fullon_orm.models import Exchange, Symbol, User
         from fullon_orm.models.user import RoleEnum
 
         async with DatabaseContext() as db:
@@ -281,7 +294,7 @@ async def install_demo_orm_data(orm_db_name: str) -> bool:
                     name="robert",
                     lastname="plant",
                     phone="666666666",
-                    id_num="3242"
+                    id_num="3242",
                 )
                 created_user = await db.users.add_user(user)
                 uid = created_user.uid
@@ -306,14 +319,18 @@ async def install_demo_orm_data(orm_db_name: str) -> bool:
                         break
 
                 if not cat_ex_id:
-                    cat_exchange = await db.exchanges.create_cat_exchange(exchange_name, "")
+                    cat_exchange = await db.exchanges.create_cat_exchange(
+                        exchange_name, ""
+                    )
                     cat_ex_id = cat_exchange.cat_ex_id
                     print_success(f"Category exchange created: {exchange_name}")
 
                 # Create user exchange
                 user_exchange_name = f"{exchange_name}1"
                 user_exchanges = await db.exchanges.get_user_exchanges(uid)
-                exchange_exists = any(ue.name == user_exchange_name for ue in user_exchanges)
+                exchange_exists = any(
+                    ue.name == user_exchange_name for ue in user_exchanges
+                )
 
                 if not exchange_exists:
                     exchange = Exchange(
@@ -321,7 +338,7 @@ async def install_demo_orm_data(orm_db_name: str) -> bool:
                         cat_ex_id=cat_ex_id,
                         name=user_exchange_name,
                         test=False,
-                        active=True
+                        active=True,
                     )
                     await db.exchanges.add_user_exchange(exchange)
                     print_success(f"User exchange created: {user_exchange_name}")
@@ -331,14 +348,29 @@ async def install_demo_orm_data(orm_db_name: str) -> bool:
             # Create symbols for each exchange (SAME as fullon_ohlcv_service/examples/demo_data.py)
             exchange_symbols = {
                 "kraken": [
-                    {"symbol": "BTC/USDC", "base": "BTC", "quote": "USD", "futures": True},
+                    {
+                        "symbol": "BTC/USDC",
+                        "base": "BTC",
+                        "quote": "USD",
+                        "futures": True,
+                    },
                 ],
                 "bitmex": [
-                    {"symbol": "BTC/USD:BTC", "base": "BTC", "quote": "USD", "futures": True},
+                    {
+                        "symbol": "BTC/USD:BTC",
+                        "base": "BTC",
+                        "quote": "USD",
+                        "futures": True,
+                    },
                 ],
                 "hyperliquid": [
-                    {"symbol": "BTC/USDC:USDC", "base": "BTC", "quote": "USDC", "futures": True},
-                ]
+                    {
+                        "symbol": "BTC/USDC:USDC",
+                        "base": "BTC",
+                        "quote": "USDC",
+                        "futures": True,
+                    },
+                ],
             }
 
             cat_exchanges = await db.exchanges.get_cat_exchanges(all=True)
@@ -353,8 +385,7 @@ async def install_demo_orm_data(orm_db_name: str) -> bool:
                 for symbol_data in symbols:
                     try:
                         existing_symbol = await db.symbols.get_by_symbol(
-                            symbol_data["symbol"],
-                            cat_ex_id=cat_ex_id
+                            symbol_data["symbol"], cat_ex_id=cat_ex_id
                         )
                         if existing_symbol:
                             continue
@@ -369,11 +400,13 @@ async def install_demo_orm_data(orm_db_name: str) -> bool:
                         decimals=6,
                         base=symbol_data["base"],
                         quote=symbol_data["quote"],
-                        futures=symbol_data["futures"]
+                        futures=symbol_data["futures"],
                     )
 
                     await db.symbols.add_symbol(symbol)
-                    print_info(f"Symbol added: {symbol_data['symbol']} ({exchange_name})")
+                    print_info(
+                        f"Symbol added: {symbol_data['symbol']} ({exchange_name})"
+                    )
 
             await db.commit()
             print_success("Demo ORM data installation complete!")
@@ -381,9 +414,9 @@ async def install_demo_orm_data(orm_db_name: str) -> bool:
 
         # Restore original DATABASE_URL
         if original_db_url:
-            os.environ['DATABASE_URL'] = original_db_url
+            os.environ["DATABASE_URL"] = original_db_url
         else:
-            os.environ.pop('DATABASE_URL', None)
+            os.environ.pop("DATABASE_URL", None)
 
         return True
 
@@ -400,9 +433,9 @@ async def install_demo_ohlcv_data(orm_db_name: str, ohlcv_db_name: str) -> bool:
 
     try:
         # Set environment variables to point to test databases
-        original_db_name_env = os.environ.get('DB_NAME')
-        original_ohlcv_name_env = os.environ.get('DB_OHLCV_NAME')
-        original_db_url = os.environ.get('DATABASE_URL')
+        original_db_name_env = os.environ.get("DB_NAME")
+        original_ohlcv_name_env = os.environ.get("DB_OHLCV_NAME")
+        original_db_url = os.environ.get("DATABASE_URL")
 
         host = os.getenv("DB_HOST", "localhost")
         port = int(os.getenv("DB_PORT", "5432"))
@@ -410,23 +443,25 @@ async def install_demo_ohlcv_data(orm_db_name: str, ohlcv_db_name: str) -> bool:
         password = os.getenv("DB_PASSWORD", "")
 
         # Point to test databases
-        os.environ['DB_NAME'] = orm_db_name
-        os.environ['DB_OHLCV_NAME'] = ohlcv_db_name
+        os.environ["DB_NAME"] = orm_db_name
+        os.environ["DB_OHLCV_NAME"] = ohlcv_db_name
         # fullon_ohlcv uses DB_TEST_NAME for test mode database selection
-        os.environ['DB_TEST_NAME'] = ohlcv_db_name
-        os.environ['DATABASE_URL'] = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{orm_db_name}"
+        os.environ["DB_TEST_NAME"] = ohlcv_db_name
+        os.environ["DATABASE_URL"] = (
+            f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{orm_db_name}"
+        )
 
         # CRITICAL: Force reload of ALL fullon_ohlcv modules to pick up new environment variables
         # Clear config module first (it creates the singleton with environment variables)
         modules_to_clear = [
-            'fullon_ohlcv.utils.config',
-            'fullon_ohlcv.utils.database',
-            'fullon_ohlcv.repositories.base_repository',
-            'fullon_ohlcv.repositories.ohlcv.base_repository',
-            'fullon_ohlcv.repositories.ohlcv.trade_repository',
-            'fullon_ohlcv.repositories.ohlcv.candle_repository',
-            'fullon_ohlcv.repositories.ohlcv',
-            'fullon_ohlcv.models',
+            "fullon_ohlcv.utils.config",
+            "fullon_ohlcv.utils.database",
+            "fullon_ohlcv.repositories.base_repository",
+            "fullon_ohlcv.repositories.ohlcv.base_repository",
+            "fullon_ohlcv.repositories.ohlcv.trade_repository",
+            "fullon_ohlcv.repositories.ohlcv.candle_repository",
+            "fullon_ohlcv.repositories.ohlcv",
+            "fullon_ohlcv.models",
         ]
         for module_name in modules_to_clear:
             if module_name in sys.modules:
@@ -443,19 +478,19 @@ async def install_demo_ohlcv_data(orm_db_name: str, ohlcv_db_name: str) -> bool:
 
         # Restore environment variables
         if original_db_name_env:
-            os.environ['DB_NAME'] = original_db_name_env
+            os.environ["DB_NAME"] = original_db_name_env
         else:
-            os.environ.pop('DB_NAME', None)
+            os.environ.pop("DB_NAME", None)
 
         if original_ohlcv_name_env:
-            os.environ['DB_OHLCV_NAME'] = original_ohlcv_name_env
+            os.environ["DB_OHLCV_NAME"] = original_ohlcv_name_env
         else:
-            os.environ.pop('DB_OHLCV_NAME', None)
+            os.environ.pop("DB_OHLCV_NAME", None)
 
         if original_db_url:
-            os.environ['DATABASE_URL'] = original_db_url
+            os.environ["DATABASE_URL"] = original_db_url
         else:
-            os.environ.pop('DATABASE_URL', None)
+            os.environ.pop("DATABASE_URL", None)
 
         if success:
             print_success("Demo OHLCV data installation complete!")
@@ -501,7 +536,9 @@ async def setup_demo_environment():
         print_error(f"Failed to setup demo environment: {e}")
         # Cleanup on failure
         try:
-            await drop_dual_test_databases(f"{test_base_name}_orm", f"{test_base_name}_ohlcv")
+            await drop_dual_test_databases(
+                f"{test_base_name}_orm", f"{test_base_name}_ohlcv"
+            )
         except:
             pass
         raise
@@ -537,8 +574,7 @@ async def run_full_demo():
         # Cleanup
         if test_base_name:
             await drop_dual_test_databases(
-                f"{test_base_name}_orm",
-                f"{test_base_name}_ohlcv"
+                f"{test_base_name}_orm", f"{test_base_name}_ohlcv"
             )
 
 
@@ -546,28 +582,39 @@ async def main():
     """Main CLI interface"""
     parser = argparse.ArgumentParser(
         description="Demo Data Setup for fullon_ohlcv_api Examples",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument('--setup', action='store_true',
-                        help='Create test databases and install demo data')
-    parser.add_argument('--cleanup', metavar='BASE_NAME',
-                        help='Drop test databases with given base name')
-    parser.add_argument('--run-all', action='store_true',
-                        help='Setup, run all examples, then cleanup')
-    parser.add_argument('--examples-only', action='store_true',
-                        help='Run examples against existing database')
+    parser.add_argument(
+        "--setup",
+        action="store_true",
+        help="Create test databases and install demo data",
+    )
+    parser.add_argument(
+        "--cleanup",
+        metavar="BASE_NAME",
+        help="Drop test databases with given base name",
+    )
+    parser.add_argument(
+        "--run-all", action="store_true", help="Setup, run all examples, then cleanup"
+    )
+    parser.add_argument(
+        "--examples-only",
+        action="store_true",
+        help="Run examples against existing database",
+    )
 
     args = parser.parse_args()
 
     if args.setup:
         base_name = await setup_demo_environment()
-        print_info(f"\nTo cleanup later, run: python {sys.argv[0]} --cleanup {base_name}")
+        print_info(
+            f"\nTo cleanup later, run: python {sys.argv[0]} --cleanup {base_name}"
+        )
 
     elif args.cleanup:
         success = await drop_dual_test_databases(
-            f"{args.cleanup}_orm",
-            f"{args.cleanup}_ohlcv"
+            f"{args.cleanup}_orm", f"{args.cleanup}_ohlcv"
         )
         sys.exit(0 if success else 1)
 
@@ -593,5 +640,6 @@ if __name__ == "__main__":
     except Exception as e:
         print_error(f"\nUnexpected error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

@@ -6,8 +6,8 @@ Demonstrates OHLCV aggregation via the future fullon_ohlcv_sdk client.
 This is a goal-spec example: it shows intended SDK usage and outputs.
 """
 
-import os
 import asyncio
+import os
 from datetime import UTC, datetime, timedelta
 
 from dotenv import load_dotenv
@@ -56,10 +56,11 @@ async def main() -> None:
         )
         print(f"✅ Generated {len(ohlcv)} {timeframe} OHLCV candles from trade data")
         for i, c in enumerate(ohlcv[:3]):
-            print(f"  OHLCV {i+1}: O:{c.open} H:{c.high} L:{c.low} C:{c.close} Vol:{c.vol}")
+            print(
+                f"  OHLCV {i+1}: O:{c.open} H:{c.high} L:{c.low} C:{c.close} Vol:{c.vol}"
+            )
 
 
 if __name__ == "__main__":
     install_uvloop()
     asyncio.run(main())
-

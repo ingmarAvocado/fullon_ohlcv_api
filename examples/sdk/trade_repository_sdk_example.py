@@ -6,8 +6,8 @@ Demonstrates trade data retrieval via the future fullon_ohlcv_sdk client.
 This is a goal-spec example: it shows intended SDK usage and outputs.
 """
 
-import os
 import asyncio
+import os
 from datetime import UTC, datetime, timedelta
 
 from dotenv import load_dotenv
@@ -36,7 +36,6 @@ async def main() -> None:
 
     try:
         from fullon_ohlcv_sdk import FullonOhlcvClient  # type: ignore
-        from fullon_ohlcv.models import Trade  # for typing clarity
     except Exception as e:  # pragma: no cover - SDK not yet implemented
         print(f"❌ SDK import failed: {e}")
         print("💡 Implement fullon_ohlcv_sdk to run this example")
@@ -61,4 +60,3 @@ async def main() -> None:
 if __name__ == "__main__":
     install_uvloop()
     asyncio.run(main())
-

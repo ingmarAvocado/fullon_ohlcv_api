@@ -16,6 +16,7 @@ import os
 # Load environment variables
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     # python-dotenv not available, environment variables should be set externally

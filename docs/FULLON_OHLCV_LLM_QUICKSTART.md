@@ -25,7 +25,7 @@ python src/fullon_ohlcv/install_ohlcv.py --delete my_database_name
 **Important**: Before saving data, you must initialize symbol tables using `init_symbol()`:
 
 ```python
-async with TradeRepository("binance", "BTC/USDT", test=True) as repo:
+async with TradeRepository("binance", "BTC/USDT") as repo:
     # Initialize symbol creates 4 database objects:
     # 1. {symbol}_trades - Raw trade data table
     # 2. {symbol}_candles1m - Pre-computed candles table
@@ -56,8 +56,8 @@ from fullon_ohlcv.repositories.ohlcv import TradeRepository
 from fullon_ohlcv.models import Trade
 
 async def main():
-    # Initialize with test=True for testing
-    async with TradeRepository("binance", "BTC/USDT", test=True) as repo:
+    # Initialize repository
+    async with TradeRepository("binance", "BTC/USDT") as repo:
         # Initialize symbol tables
         await repo.init_symbol()
 
@@ -104,7 +104,7 @@ from fullon_ohlcv.models import Candle
 
 async def main():
     # Use context manager (recommended)
-    async with CandleRepository("binance", "ETH/USDT", test=True) as repo:
+    async with CandleRepository("binance", "ETH/USDT") as repo:
         # Initialize symbol tables
         await repo.init_symbol()
 
@@ -153,7 +153,7 @@ from datetime import datetime, timezone, timedelta
 from fullon_ohlcv.repositories.ohlcv import TimeseriesRepository
 
 async def main():
-    async with TimeseriesRepository("binance", "BTC/USDT", test=True) as repo:
+    async with TimeseriesRepository("binance", "BTC/USDT") as repo:
         # Initialize symbol tables
         await repo.init_symbol()
 
@@ -182,7 +182,7 @@ if __name__ == "__main__":
 2. **Always async** - Use `async`/`await` for all operations
 3. **Use context managers** - `async with Repository(...) as repo:` (recommended) or manual `await repo.initialize()` + `await repo.close()`
 4. **UTC timestamps** - Always use `datetime.now(timezone.utc)`
-5. **Test mode** - Use `test=True` for testing to avoid production data
+5. **Performance** - Call `install_uvloop()` before `asyncio.run()` for better performance
 6. **Performance** - Call `install_uvloop()` before `asyncio.run()` for better performance
 
 ## 📊 What Gets Created

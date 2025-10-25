@@ -6,8 +6,9 @@ Demonstrates real-time OHLCV streaming via the future fullon_ohlcv_sdk client.
 This is a goal-spec example: it shows intended SDK usage and outputs.
 """
 
-import os
 import asyncio
+import os
+
 from dotenv import load_dotenv
 
 try:
@@ -53,4 +54,3 @@ async def main() -> None:
 if __name__ == "__main__":
     install_uvloop()
     asyncio.run(main())
-

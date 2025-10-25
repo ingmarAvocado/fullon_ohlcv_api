@@ -34,8 +34,7 @@ async def get_ohlcv_aggregation(  # type: ignore[no-any-unimported]
     end_time: datetime = Query(
         ..., description="End time for aggregation range (ISO format)"
     ),
-    limit: int
-    | None = Query(
+    limit: int | None = Query(
         default=100,
         ge=1,
         le=10000,
@@ -77,7 +76,7 @@ async def get_ohlcv_aggregation(  # type: ignore[no-any-unimported]
         compression, period = convert_timeframe_to_compression(timeframe)
 
         # Timescale-only aggregation path
-        async with TimeseriesRepository(exchange, symbol, test=True) as repo:
+        async with TimeseriesRepository(exchange, symbol) as repo:
             start_arrow = arrow.get(start_time)
             end_arrow = arrow.get(end_time)
 
@@ -98,7 +97,11 @@ async def get_ohlcv_aggregation(  # type: ignore[no-any-unimported]
 
         ohlcv_list = [
             {
-                "timestamp": ts.datetime.isoformat() if hasattr(ts, "datetime") else ts.isoformat(),
+                "timestamp": (
+                    ts.datetime.isoformat()
+                    if hasattr(ts, "datetime")
+                    else ts.isoformat()
+                ),
                 "open": _f(o),
                 "high": _f(h),
                 "low": _f(l),

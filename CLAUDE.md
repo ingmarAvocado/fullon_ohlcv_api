@@ -395,7 +395,7 @@ open http://localhost:8000/redoc   # ReDoc interface
 # TradeRepository - Core time-series trade operations
 from fullon_ohlcv.repositories.ohlcv import TradeRepository
 
-async with TradeRepository("binance", "BTC/USDT", test=True) as repo:
+async with TradeRepository("binance", "BTC/USDT") as repo:
     # Data retrieval (READ-ONLY)
     trades = await repo.get_recent_trades(limit=100)
     historical = await repo.get_trades_in_range(start_time, end_time, limit=10)
@@ -407,7 +407,7 @@ async with TradeRepository("binance", "BTC/USDT", test=True) as repo:
 # CandleRepository - OHLCV candle data operations  
 from fullon_ohlcv.repositories.ohlcv import CandleRepository
 
-async with CandleRepository("binance", "ETH/USDT", test=True) as repo:
+async with CandleRepository("binance", "ETH/USDT") as repo:
     # Candle data retrieval (READ-ONLY)
     candles = await repo.get_candles_in_range(start_time, end_time)
     
@@ -418,7 +418,7 @@ async with CandleRepository("binance", "ETH/USDT", test=True) as repo:
 # TimeseriesRepository - OHLCV aggregation from trade data
 from fullon_ohlcv.repositories.ohlcv import TimeseriesRepository
 
-async with TimeseriesRepository("binance", "BTC/USDT", test=True) as repo:
+async with TimeseriesRepository("binance", "BTC/USDT") as repo:
     # Generate OHLCV from existing trades (READ-ONLY)
     ohlcv_data = await repo.fetch_ohlcv(
         start_time=start_time,
@@ -478,7 +478,7 @@ def main():
 
 ### **Critical fullon_ohlcv Integration Points**
 1. **Context Manager Pattern**: Always use `async with Repository(...) as repo:` 
-2. **Test Mode**: Use `test=True` parameter to avoid production data contamination
+2. **Performance**: Call `install_uvloop()` before `asyncio.run()` for optimal performance
 3. **UTC Timestamps**: All datetime objects must be timezone-aware UTC
 4. **Async Operations**: Every repository operation is asynchronous
 5. **Performance**: Call `install_uvloop()` before `asyncio.run()` for optimal performance

@@ -10,12 +10,12 @@ import asyncio
 import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import List
 
 # Load environment variables from .env file FIRST (before ANY imports)
 project_root = Path(__file__).parent.parent
 try:
     from dotenv import load_dotenv
+
     load_dotenv(project_root / ".env")
 except ImportError:
     print("⚠️  python-dotenv not available, make sure .env variables are set manually")
@@ -54,7 +54,7 @@ class ExampleDataFiller:
         self.exchange_symbols = {
             "kraken": ["BTC/USDC"],
             "bitmex": ["BTC/USD:BTC"],
-            "hyperliquid": ["BTC/USDC:USDC"]
+            "hyperliquid": ["BTC/USDC:USDC"],
         }
 
         # Realistic price levels for different symbols
@@ -73,19 +73,22 @@ class ExampleDataFiller:
         """
         try:
             import sys
+
             # Remove cached config module
-            if 'fullon_ohlcv.utils.config' in sys.modules:
-                del sys.modules['fullon_ohlcv.utils.config']
+            if "fullon_ohlcv.utils.config" in sys.modules:
+                del sys.modules["fullon_ohlcv.utils.config"]
 
             # Reimport to get fresh config with current environment
             from fullon_ohlcv.utils.config import config
 
-            logger.info(f"Reloaded fullon_ohlcv config: test_db={config.database.test_name}, prod_db={config.database.name}")
+            logger.info(
+                f"Reloaded fullon_ohlcv config: test_db={config.database.test_name}, prod_db={config.database.name}"
+            )
 
         except Exception as e:
             logger.warning(f"Could not reload fullon_ohlcv config: {e}")
 
-    def generate_realistic_trades(self, symbol: str, count: int = 100) -> List:
+    def generate_realistic_trades(self, symbol: str, count: int = 100) -> list:
         """Generate realistic trade data with price movements."""
         # Import here to allow environment to be set first
         from fullon_ohlcv.models import Trade
@@ -94,18 +97,18 @@ class ExampleDataFiller:
         base_price = self.base_prices.get(symbol, 1000.0)
         current_price = base_price
         base_time = datetime.now(UTC)
-        
+
         logger.info(f"Generating {count} trades for {symbol} starting at ${base_price}")
-        
+
         for i in range(count):
             # Create realistic price movements (random walk)
             price_change_pct = (i % 7 - 3) * 0.001  # Small price movements
-            current_price *= (1 + price_change_pct)
-            
+            current_price *= 1 + price_change_pct
+
             # Realistic volume based on trade type
             is_large_trade = i % 10 == 0
             volume = 5.0 + (i * 0.1) if is_large_trade else 0.1 + (i * 0.01)
-            
+
             trade = Trade(
                 timestamp=base_time - timedelta(minutes=i * 2),  # 2-minute intervals
                 price=round(current_price, 2),
@@ -114,11 +117,13 @@ class ExampleDataFiller:
                 type="MARKET" if i % 4 != 0 else "LIMIT",  # Mostly market orders
             )
             trades.append(trade)
-            
-        logger.info(f"Generated {len(trades)} trades with prices from ${min(t.price for t in trades):.2f} to ${max(t.price for t in trades):.2f}")
+
+        logger.info(
+            f"Generated {len(trades)} trades with prices from ${min(t.price for t in trades):.2f} to ${max(t.price for t in trades):.2f}"
+        )
         return trades
 
-    def generate_realistic_candles(self, symbol: str, count: int = 50) -> List:
+    def generate_realistic_candles(self, symbol: str, count: int = 50) -> list:
         """Generate realistic OHLCV candle data."""
         # Import here to allow environment to be set first
         from fullon_ohlcv.models import Candle
@@ -127,28 +132,30 @@ class ExampleDataFiller:
         base_price = self.base_prices.get(symbol, 1000.0)
         current_close = base_price
         base_time = datetime.now(UTC)
-        
-        logger.info(f"Generating {count} candles for {symbol} starting at ${base_price}")
-        
+
+        logger.info(
+            f"Generating {count} candles for {symbol} starting at ${base_price}"
+        )
+
         for i in range(count):
             # Realistic OHLCV with proper relationships
             open_price = current_close
-            
+
             # Generate high/low with realistic spread
             volatility = base_price * 0.002  # 0.2% volatility
             high_price = open_price + (volatility * (1 + i % 3))
             low_price = open_price - (volatility * (1 + i % 2))
-            
+
             # Close price trends slightly upward
             close_change = (i % 5 - 2) * volatility * 0.5
             close_price = open_price + close_change
             current_close = close_price
-            
+
             # Realistic volume (higher during volatile periods)
             base_volume = 100.0 + (i * 2)
             volatility_multiplier = abs(close_price - open_price) / open_price * 1000
             volume = base_volume * (1 + volatility_multiplier)
-            
+
             candle = Candle(
                 timestamp=base_time - timedelta(hours=i),  # Hourly candles
                 open=round(open_price, 2),
@@ -158,11 +165,15 @@ class ExampleDataFiller:
                 vol=round(volume, 2),
             )
             candles.append(candle)
-            
-        logger.info(f"Generated {len(candles)} candles with volume from {min(c.vol for c in candles):.2f} to {max(c.vol for c in candles):.2f}")
+
+        logger.info(
+            f"Generated {len(candles)} candles with volume from {min(c.vol for c in candles):.2f} to {max(c.vol for c in candles):.2f}"
+        )
         return candles
 
-    async def fill_trade_data(self, exchange: str, symbol: str, count: int = 100) -> bool:
+    async def fill_trade_data(
+        self, exchange: str, symbol: str, count: int = 100
+    ) -> bool:
         """Fill trade data using TradeRepository methods."""
         # Import here to allow environment to be set first
         from fullon_ohlcv.repositories.ohlcv import TradeRepository
@@ -177,14 +188,18 @@ class ExampleDataFiller:
                 # Initialize symbol database objects (creates tables/hypertables/views)
                 init_success = await repo.init_symbol()
                 if not init_success:
-                    logger.error(f"❌ Failed to initialize symbol for {exchange}/{symbol}")
+                    logger.error(
+                        f"❌ Failed to initialize symbol for {exchange}/{symbol}"
+                    )
                     return False
 
                 logger.info(f"Saving {len(trades)} trades to {exchange}.{symbol}")
                 success = await repo.save_trades(trades)
 
                 if success:
-                    logger.info(f"✅ Successfully saved {len(trades)} trades for {symbol}")
+                    logger.info(
+                        f"✅ Successfully saved {len(trades)} trades for {symbol}"
+                    )
 
                     # Verify data was saved
                     recent_trades = await repo.get_recent_trades(limit=5)
@@ -195,7 +210,9 @@ class ExampleDataFiller:
                         print(f"✅ Trade data for {symbol}:")
                         print(f"   📊 {len(trades)} trades saved")
                         print(f"   🕒 Time range: {oldest_ts} to {latest_ts}")
-                        print(f"   💰 Sample prices: ${recent_trades[0].price:.2f} - ${recent_trades[-1].price:.2f}")
+                        print(
+                            f"   💰 Sample prices: ${recent_trades[0].price:.2f} - ${recent_trades[-1].price:.2f}"
+                        )
                     else:
                         print(f"✅ Trade data for {symbol}:")
                         print(f"   📊 {len(trades)} trades saved")
@@ -208,10 +225,13 @@ class ExampleDataFiller:
         except Exception as e:
             logger.error(f"❌ Error filling trade data for {symbol}: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 
-    async def fill_candle_data(self, exchange: str, symbol: str, count: int = 50) -> bool:
+    async def fill_candle_data(
+        self, exchange: str, symbol: str, count: int = 50
+    ) -> bool:
         """Fill candle data using CandleRepository methods."""
         # Import here to allow environment to be set first
         from fullon_ohlcv.repositories.ohlcv import CandleRepository
@@ -226,14 +246,18 @@ class ExampleDataFiller:
                 # Initialize symbol database objects (creates tables/hypertables/views)
                 init_success = await repo.init_symbol()
                 if not init_success:
-                    logger.error(f"❌ Failed to initialize symbol for {exchange}/{symbol}")
+                    logger.error(
+                        f"❌ Failed to initialize symbol for {exchange}/{symbol}"
+                    )
                     return False
 
                 logger.info(f"Saving {len(candles)} candles to {exchange}.{symbol}")
                 success = await repo.save_candles(candles)
 
                 if success:
-                    logger.info(f"✅ Successfully saved {len(candles)} candles for {symbol}")
+                    logger.info(
+                        f"✅ Successfully saved {len(candles)} candles for {symbol}"
+                    )
 
                     # Verify data was saved
                     oldest_ts = await repo.get_oldest_timestamp()
@@ -243,7 +267,9 @@ class ExampleDataFiller:
                         print(f"✅ Candle data for {symbol}:")
                         print(f"   📊 {len(candles)} candles saved")
                         print(f"   🕒 Time range: {oldest_ts} to {latest_ts}")
-                        print(f"   📈 OHLC range: ${min(c.low for c in candles):.2f} - ${max(c.high for c in candles):.2f}")
+                        print(
+                            f"   📈 OHLC range: ${min(c.low for c in candles):.2f} - ${max(c.high for c in candles):.2f}"
+                        )
                     else:
                         print(f"✅ Candle data for {symbol}:")
                         print(f"   📊 {len(candles)} candles saved")
@@ -256,13 +282,16 @@ class ExampleDataFiller:
         except Exception as e:
             logger.error(f"❌ Error filling candle data for {symbol}: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 
     async def fill_all_data(self) -> bool:
         """Fill all test data for examples."""
         print("🗄️  Filling example database with realistic market data...")
-        print("📊 Using exchanges/symbols matching fullon_ohlcv_service/examples/demo_data.py:")
+        print(
+            "📊 Using exchanges/symbols matching fullon_ohlcv_service/examples/demo_data.py:"
+        )
         for exchange, symbols in self.exchange_symbols.items():
             print(f"   - {exchange}: {', '.join(symbols)}")
 
@@ -274,14 +303,18 @@ class ExampleDataFiller:
 
                 # Fill both trades and candles
                 trade_success = await self.fill_trade_data(exchange, symbol, count=150)
-                candle_success = await self.fill_candle_data(exchange, symbol, count=72)  # 3 days of hourly candles
+                candle_success = await self.fill_candle_data(
+                    exchange, symbol, count=72
+                )  # 3 days of hourly candles
 
                 if not (trade_success and candle_success):
                     all_success = False
 
         if all_success:
             print("\n🎉 All example data filled successfully!")
-            print("💡 The API examples will now demonstrate working functionality with real data")
+            print(
+                "💡 The API examples will now demonstrate working functionality with real data"
+            )
         else:
             print("\n⚠️  Some data filling operations failed")
             print("💡 Examples may still work but with limited data")
@@ -308,10 +341,14 @@ async def main():
 
     parser = argparse.ArgumentParser(
         description="Fill example data for fullon_ohlcv_api",
-        epilog="NOTE: Test databases must exist first. Use demo_data.py --setup to create them."
+        epilog="NOTE: Test databases must exist first. Use demo_data.py --setup to create them.",
     )
-    parser.add_argument("--clear", action="store_true", help="Clear data instead of filling")
-    parser.add_argument("--prod", action="store_true", help="Use production database (default: test)")
+    parser.add_argument(
+        "--clear", action="store_true", help="Clear data instead of filling"
+    )
+    parser.add_argument(
+        "--prod", action="store_true", help="Use production database (default: test)"
+    )
     parser.add_argument(
         "--yes-really",
         action="store_true",
@@ -329,9 +366,12 @@ async def main():
     # Warn about test database requirement
     if not args.prod:
         from fullon_ohlcv.utils.config import config
+
         test_db = config.database.test_name
         print(f"\n⚠️  WARNING: This script requires test database '{test_db}' to exist!")
-        print(f"💡 If database doesn't exist, create it with: poetry run python examples/demo_data.py --setup\n")
+        print(
+            "💡 If database doesn't exist, create it with: poetry run python examples/demo_data.py --setup\n"
+        )
 
     filler = ExampleDataFiller(test_mode=not args.prod)
 
@@ -345,6 +385,7 @@ if __name__ == "__main__":
     # Import uvloop here
     try:
         from fullon_ohlcv.utils import install_uvloop
+
         install_uvloop()  # Performance optimization from Method Reference
     except ImportError:
         print("⚠️  fullon_ohlcv not available - running without uvloop")

@@ -20,6 +20,7 @@ logger = get_component_logger("fullon.api.ohlcv.trades")
 # Router must be defined before using it in decorators
 router = APIRouter()
 
+
 @router.get("/{exchange}/{symbol:path}/range", response_model=TradesResponse)
 async def get_trades_in_range(  # type: ignore[no-any-unimported]
     exchange: str,
@@ -120,6 +121,7 @@ async def get_trades_in_range(  # type: ignore[no-any-unimported]
             error=str(e),
         )
         raise HTTPException(status_code=500, detail="Internal server error")
+
 
 @router.get("/{exchange}/{symbol:path}", response_model=TradesResponse)
 async def get_recent_trades(  # type: ignore[no-any-unimported]

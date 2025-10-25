@@ -10,8 +10,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from starlette.websockets import WebSocketState
 from fullon_log import get_component_logger
+from starlette.websockets import WebSocketState
 
 logger = get_component_logger("fullon.api.ohlcv.websocket")
 
@@ -79,8 +79,10 @@ class ConnectionManager:
         """Send message to a specific WebSocket client."""
         # Check if WebSocket is still connected before sending
         if websocket.client_state != WebSocketState.CONNECTED:
-            logger.debug("Cannot send message - WebSocket not in CONNECTED state",
-                        state=websocket.client_state)
+            logger.debug(
+                "Cannot send message - WebSocket not in CONNECTED state",
+                state=websocket.client_state,
+            )
             return
 
         try:

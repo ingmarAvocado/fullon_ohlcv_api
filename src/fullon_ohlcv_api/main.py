@@ -6,7 +6,6 @@ For new usage, prefer:
 - Standalone server: python -m fullon_ohlcv_api.standalone_server
 """
 
-import os
 from dotenv import load_dotenv
 
 # Load environment variables at startup

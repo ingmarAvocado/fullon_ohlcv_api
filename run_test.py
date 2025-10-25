@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 import time
+
 from dotenv import load_dotenv
 
 # Load environment
@@ -21,68 +22,70 @@ class TestRunner:
         self.api_process = None
         self.api_host = os.getenv("API_HOST", "0.0.0.0")
         self.api_port = int(os.getenv("API_PORT", "9000"))
-        
+
     def setup_database(self):
         """Setup database with test data before running tests"""
         print("=" * 60)
         print("🗄️  STEP 1: Setting up test database")
         print("=" * 60)
-        
+
         try:
             # Use the KISS approach that works
-            sys.path.insert(0, 'examples')
+            sys.path.insert(0, "examples")
             from fill_data_examples import ExampleDataFiller
             from fullon_ohlcv.utils import install_uvloop
-            
+
             async def setup():
                 install_uvloop()
                 filler = ExampleDataFiller(test_mode=True)
-                
+
                 print("🧹 Clearing any existing data...")
                 await filler.clear_all_data()
-                
+
                 print("📊 Filling database with test data...")
                 success = await filler.fill_all_data()
                 return success
-            
+
             success = asyncio.run(setup())
-            
+
             if success:
                 print("✅ Database setup completed successfully")
                 return True
             else:
                 print("❌ Database setup failed")
                 return False
-                
+
         except Exception as e:
             print(f"❌ Database setup error: {e}")
             return False
-    
+
     def start_server(self):
         """Start web server for integration tests"""
         print("=" * 60)
         print("🚀 STEP 2: Starting test server")
         print("=" * 60)
-        
+
         try:
             server_script = "src/fullon_ohlcv_api/standalone_server.py"
-            
+
             # Set environment for server
             env = os.environ.copy()
             env["API_HOST"] = self.api_host
             env["API_PORT"] = str(self.api_port)
-            
+
             self.api_process = subprocess.Popen(
                 ["python", server_script],
                 env=env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-            
+
             # Wait for server to start
-            print(f"⏳ Waiting for server to start on {self.api_host}:{self.api_port}...")
+            print(
+                f"⏳ Waiting for server to start on {self.api_host}:{self.api_port}..."
+            )
             time.sleep(3)
-            
+
             if self.api_process.poll() is None:
                 print("✅ Test server started successfully")
                 return True
@@ -90,11 +93,11 @@ class TestRunner:
                 stdout, stderr = self.api_process.communicate()
                 print(f"❌ Server failed to start: {stderr.decode()}")
                 return False
-                
+
         except Exception as e:
             print(f"❌ Server start error: {e}")
             return False
-    
+
     def stop_server(self):
         """Stop test server"""
         if self.api_process:
@@ -108,26 +111,26 @@ class TestRunner:
                 self.api_process.kill()
                 self.api_process.wait()
                 print("✅ Test server killed")
-    
+
     def cleanup_database(self):
         """Clean database after tests"""
         print("=" * 60)
         print("🧹 STEP 4: Cleaning up test database")
         print("=" * 60)
-        
+
         try:
             # Use KISS approach
-            sys.path.insert(0, 'examples')
+            sys.path.insert(0, "examples")
             from fill_data_examples import ExampleDataFiller
-            
+
             async def cleanup():
-                filler = ExampleDataFiller(test_mode=True) 
+                filler = ExampleDataFiller(test_mode=True)
                 await filler.clear_all_data()
-            
+
             asyncio.run(cleanup())
             print("✅ Database cleaned up")
             return True
-            
+
         except Exception as e:
             print(f"⚠️  Database cleanup error: {e}")
             return False
@@ -138,7 +141,7 @@ def run_tests(args, runner):
     print("=" * 60)
     print("🧪 STEP 3: Running pytest tests")
     print("=" * 60)
-    
+
     # Base pytest command
     cmd = ["poetry", "run", "pytest"]
 
@@ -282,7 +285,18 @@ def run_tests(args, runner):
     print("Pytest Configuration:")
     print("- Paths:       ", " ".join(args.paths) if args.paths else "tests/")
     print("- Workers:     ", workers_display)
-    print("- Verbosity:   ", ("quiet" if args.quiet else ("-v" if args.verbose == 1 else ("-vv" if args.verbose >= 2 else "-vv (default)"))))
+    print(
+        "- Verbosity:   ",
+        (
+            "quiet"
+            if args.quiet
+            else (
+                "-v"
+                if args.verbose == 1
+                else ("-vv" if args.verbose >= 2 else "-vv (default)")
+            )
+        ),
+    )
     if args.markers:
         print("- Markers:     ", args.markers)
     if args.keyword:
@@ -335,8 +349,16 @@ Examples:
     )
 
     # Setup control
-    parser.add_argument("--no-setup", action="store_true", help="Skip database setup and server start (for unit tests)")
-    parser.add_argument("--no-server", action="store_true", help="Skip server start (database setup only)")
+    parser.add_argument(
+        "--no-setup",
+        action="store_true",
+        help="Skip database setup and server start (for unit tests)",
+    )
+    parser.add_argument(
+        "--no-server",
+        action="store_true",
+        help="Skip server start (database setup only)",
+    )
 
     # Execution control
     parser.add_argument(
@@ -463,7 +485,7 @@ Examples:
         # This covers the case where user runs: ./run_test.py  or  ./run_test.py tests/unit/test_models.py
         if not args.integration:
             args.no_setup = True  # Default: no database setup for regular test runs
-    
+
     # If no specific paths given, default to tests/ directory
     if not args.paths:
         args.paths = ["tests/"]
@@ -481,29 +503,29 @@ Examples:
     # Main test flow
     runner = TestRunner()
     exit_code = 0
-    
+
     print("🎯 Enhanced Test Runner - fullon_ohlcv_api")
     if args.no_setup:
         print("Flow: Run Tests Only (no database setup)")
     else:
         print("Flow: Setup DB → Start Server → Run Tests → Stop Server → Cleanup DB")
-    
+
     try:
         # Step 1: Setup database (unless skipped)
         if not args.no_setup:
             if not runner.setup_database():
                 print("❌ Database setup failed")
                 sys.exit(1)
-        
-        # Step 2: Start server (unless skipped)  
+
+        # Step 2: Start server (unless skipped)
         if not args.no_setup and not args.no_server:
             if not runner.start_server():
                 print("❌ Server start failed")
                 sys.exit(1)
-        
+
         # Step 3: Run tests
         exit_code = run_tests(args, runner)
-        
+
     except KeyboardInterrupt:
         print("\n🛑 Test run interrupted")
         exit_code = 1
@@ -516,14 +538,14 @@ Examples:
             runner.stop_server()
         if not args.no_setup:
             runner.cleanup_database()
-    
+
     # Final summary
     print("=" * 60)
     if exit_code == 0:
         print("🎉 ALL TESTS PASSED!")
     else:
         print("❌ SOME TESTS FAILED")
-    
+
     sys.exit(exit_code)
 
 

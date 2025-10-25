@@ -9,7 +9,7 @@ from fullon_ohlcv.repositories.ohlcv import TradeRepository
 ```
 
 ### Initialization
-- `TradeRepository(exchange, symbol, test=True)` - Create repository
+- `TradeRepository(exchange, symbol)` - Create repository
 - `async with TradeRepository(...) as repo:` - Context manager (recommended)
 - `await repo.initialize()` - Initialize connection, schema, and TimescaleDB extension
 - `await repo.init_symbol()` - Create all database tables/views for symbol
@@ -38,7 +38,7 @@ from fullon_ohlcv.repositories.ohlcv import CandleRepository
 ```
 
 ### Initialization
-- `CandleRepository(exchange, symbol, test=True)` - Create repository
+- `CandleRepository(exchange, symbol)` - Create repository
 - `async with CandleRepository(...) as repo:` - Context manager (recommended)
 - `await repo.initialize()` - Initialize connection, schema, and TimescaleDB extension
 - `await repo.init_symbol()` - Create all database tables/views for symbol (see TradeRepository for details)
@@ -59,7 +59,7 @@ import arrow
 ```
 
 ### Initialization
-- `TimeseriesRepository(exchange, symbol, test=True)` - Create repository
+- `TimeseriesRepository(exchange, symbol)` - Create repository
 - `async with TimeseriesRepository(...) as repo:` - Context manager (recommended)
 - `await repo.initialize()` - Initialize connection, schema, and TimescaleDB extension
 - `await repo.init_symbol()` - Create all database tables/views for symbol (see TradeRepository for details)
@@ -115,7 +115,7 @@ Candle(
 
 ### Context Manager (Recommended)
 ```python
-async with TradeRepository("binance", "BTC/USDT", test=True) as repo:
+async with TradeRepository("binance", "BTC/USDT") as repo:
     # Initialize symbol tables first
     await repo.init_symbol()
 
@@ -125,7 +125,7 @@ async with TradeRepository("binance", "BTC/USDT", test=True) as repo:
 
 ### Manual Management
 ```python
-repo = CandleRepository("binance", "ETH/USDT", test=True)
+repo = CandleRepository("binance", "ETH/USDT")
 await repo.initialize()
 try:
     # Initialize symbol tables
@@ -160,7 +160,7 @@ from datetime import datetime, timezone, timedelta
 end_time = datetime.now(timezone.utc)
 start_time = end_time - timedelta(hours=24)
 
-async with TimeseriesRepository("binance", "BTC/USDT", test=True) as repo:
+async with TimeseriesRepository("binance", "BTC/USDT") as repo:
     # Initialize symbol tables
     await repo.init_symbol()
 
