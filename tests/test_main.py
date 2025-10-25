@@ -46,7 +46,7 @@ class TestGatewayIntegration:
         gateway = FullonOhlcvGateway()
         assert gateway is not None
         assert gateway.title == "fullon_ohlcv_api"
-        assert gateway.version == "0.1.0"
+        assert gateway.version == "0.2.0"
         assert gateway.prefix == ""
     
     def test_gateway_with_custom_params(self):

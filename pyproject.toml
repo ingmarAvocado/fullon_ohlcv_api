@@ -1,6 +1,6 @@
 [project]
 name = "fullon_ohlcv_api"
-version = "0.2.0"
+version = "0.2.1"
 description = "FastAPI Gateway for fullon_ohlcv with LRRS-compliant architecture"
 authors = [{name = "Ingmar Frey", email = "ingmar.frey@gmail.com"}]
 readme = "README.md"
@@ -62,7 +62,7 @@ extend-exclude = '''
 '''
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py312"
 line-length = 88
 select = [
     "E",  # pycodestyle errors

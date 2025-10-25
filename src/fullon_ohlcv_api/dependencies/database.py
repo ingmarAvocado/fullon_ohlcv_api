@@ -37,14 +37,13 @@ def validate_exchange_symbol(exchange: str | None, symbol: str | None) -> None:
         raise HTTPException(status_code=422, detail="Symbol cannot be empty")
 
 
-async def get_trade_repository(
-    exchange: str, symbol: str
-) -> AsyncGenerator[Any, None]:
+async def get_trade_repository(exchange: str, symbol: str) -> AsyncGenerator[Any, None]:
     """
     FastAPI dependency for TradeRepository with proper cleanup.
 
-    Creates a TradeRepository instance in test mode for the given exchange
-    and symbol, ensures proper async context management and cleanup.
+    Creates a TradeRepository instance for the given exchange and symbol,
+    ensures proper async context management and cleanup. Connects to the
+    database specified by DB_OHLCV_NAME environment variable.
 
     Args:
         exchange: Exchange name (e.g., 'binance', 'coinbase')
@@ -61,8 +60,8 @@ async def get_trade_repository(
     logger.info("Creating TradeRepository", exchange=exchange, symbol=symbol)
 
     try:
-        # Create repository in test mode for examples with isolated test data
-        repo = TradeRepository(exchange, symbol, test=True)
+        # Create repository (production mode by default)
+        repo = TradeRepository(exchange, symbol)
         try:
             # Enter async context manager (connection/setup + auto init_symbol)
             await repo.__aenter__()
@@ -95,9 +94,7 @@ async def get_trade_repository(
         # Ensure cleanup happens
         try:
             await repo.__aexit__(None, None, None)
-            logger.info(
-                "TradeRepository cleaned up", exchange=exchange, symbol=symbol
-            )
+            logger.info("TradeRepository cleaned up", exchange=exchange, symbol=symbol)
         except Exception as cleanup_error:
             logger.warning(
                 "Error during repository cleanup",
@@ -113,8 +110,9 @@ async def get_candle_repository(
     """
     FastAPI dependency for CandleRepository with proper cleanup.
 
-    Creates a CandleRepository instance in test mode for the given exchange
-    and symbol, ensures proper async context management and cleanup.
+    Creates a CandleRepository instance for the given exchange and symbol,
+    ensures proper async context management and cleanup. Connects to the
+    database specified by DB_OHLCV_NAME environment variable.
 
     Args:
         exchange: Exchange name (e.g., 'binance', 'coinbase')
@@ -131,8 +129,8 @@ async def get_candle_repository(
     logger.info("Creating CandleRepository", exchange=exchange, symbol=symbol)
 
     try:
-        # Create repository in test mode for examples with isolated test data
-        repo = CandleRepository(exchange, symbol, test=True)
+        # Create repository (production mode by default)
+        repo = CandleRepository(exchange, symbol)
         # Enter async context manager (connection/setup + auto init_symbol)
         await repo.__aenter__()
         logger.debug(
@@ -154,9 +152,7 @@ async def get_candle_repository(
         # Ensure cleanup happens
         try:
             await repo.__aexit__(None, None, None)
-            logger.info(
-                "CandleRepository cleaned up", exchange=exchange, symbol=symbol
-            )
+            logger.info("CandleRepository cleaned up", exchange=exchange, symbol=symbol)
         except Exception as cleanup_error:
             logger.warning(
                 "Error during repository cleanup",
@@ -172,8 +168,9 @@ async def get_timeseries_repository(
     """
     FastAPI dependency for TimeseriesRepository with proper cleanup.
 
-    Creates a TimeseriesRepository instance in test mode for the given exchange
-    and symbol, ensures proper async context management and cleanup.
+    Creates a TimeseriesRepository instance for the given exchange and symbol,
+    ensures proper async context management and cleanup. Connects to the
+    database specified by DB_OHLCV_NAME environment variable.
 
     Args:
         exchange: Exchange name (e.g., 'binance', 'coinbase')
@@ -190,8 +187,8 @@ async def get_timeseries_repository(
     logger.info("Creating TimeseriesRepository", exchange=exchange, symbol=symbol)
 
     try:
-        # Create repository in test mode for examples with isolated test data
-        repo = TimeseriesRepository(exchange, symbol, test=True)
+        # Create repository (production mode by default)
+        repo = TimeseriesRepository(exchange, symbol)
         # Enter async context manager (connection/setup + auto init_symbol)
         await repo.__aenter__()
         logger.debug(
