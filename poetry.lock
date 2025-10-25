@@ -805,7 +805,7 @@ files = [
 
 [[package]]
 name = "fullon-log"
-version = "1.1.8"
+version = "1.1.9"
 description = "Production-ready, simple loguru wrapper with gorgeous output for fullon projects"
 optional = false
 python-versions = ">=3.13,<4.0"
@@ -820,11 +820,11 @@ loguru = "^0.7.3"
 type = "git"
 url = "ssh://git@github.com/ingmarAvocado/fullon_log.git"
 reference = "main"
-resolved_reference = "f5099f9fd7b64c369024d2f95a268161b41bf38a"
+resolved_reference = "1ce8972ab5c6eecd8266dd7971dcb21b873e71fb"
 
 [[package]]
 name = "fullon-ohlcv"
-version = "1.9.5"
+version = "1.9.6"
 description = "Async PostgreSQL/TimescaleDB ORM for OHLCV trading data"
 optional = false
 python-versions = ">=3.13,<4.0"
@@ -849,11 +849,11 @@ pandas = ["pandas (>=2.0.0,<3.0.0)"]
 type = "git"
 url = "ssh://git@github.com/ingmarAvocado/fullon_ohlcv.git"
 reference = "main"
-resolved_reference = "71215758493ee907ca283e185df3840dd844fbbf"
+resolved_reference = "e7f088cff107d04671bc1222ed4340ce2cc3c503"
 
 [[package]]
 name = "fullon-orm"
-version = "0.9.3"
+version = "0.9.4"
 description = "Async SQLAlchemy ORM for Fullon trading system"
 optional = false
 python-versions = ">=3.13,<4.0"
@@ -877,7 +877,7 @@ uvloop = "^0.21.0"
 type = "git"
 url = "ssh://git@github.com/ingmarAvocado/fullon_orm.git"
 reference = "main"
-resolved_reference = "e4ac1d7c739f24eb303276c1df366ff11b62567e"
+resolved_reference = "6c19bfe304638142d3d3b38f0324b420a7004a21"
 
 [[package]]
 name = "greenlet"
