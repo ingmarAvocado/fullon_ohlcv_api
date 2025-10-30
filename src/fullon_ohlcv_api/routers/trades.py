@@ -18,7 +18,7 @@ from ..models.responses import TradesResponse
 logger = get_component_logger("fullon.api.ohlcv.trades")
 
 # Router must be defined before using it in decorators
-router = APIRouter()
+router = APIRouter(prefix="/trades", tags=["Trades"])
 
 
 @router.get("/{exchange}/{symbol:path}/range", response_model=TradesResponse)

@@ -34,7 +34,7 @@ class FullonOhlcvGateway:
         self,
         title: str = "fullon_ohlcv_api",
         description: str = "FastAPI Gateway for fullon_ohlcv OHLCV market data operations",
-        version: str = "0.2.0",
+        version: str = "0.3.0",
         prefix: str = "",
     ):
         """
@@ -119,6 +119,8 @@ class FullonOhlcvGateway:
             }
 
         # Add all implemented routers
+        # Note: Routers now have their own prefixes (/trades, /candles, etc.)
+        # so we only apply the base /api prefix here
         from .routers import (
             candles_router,
             exchanges_router,
@@ -128,35 +130,18 @@ class FullonOhlcvGateway:
             websocket_router,
         )
 
-        # Trade endpoints (from trade_repository_example.py)
-        app.include_router(
-            trades_router, prefix=f"{self.prefix}/api/trades", tags=["Trades"]
-        )
+        # OHLCV Data endpoints - routers have their own sub-prefixes
+        # /api/trades, /api/candles, /api/timeseries
+        app.include_router(trades_router, prefix=f"{self.prefix}/api")
+        app.include_router(candles_router, prefix=f"{self.prefix}/api")
+        app.include_router(timeseries_router, prefix=f"{self.prefix}/api")
 
-        # Candle endpoints (from candle_repository_example.py)
-        app.include_router(
-            candles_router, prefix=f"{self.prefix}/api/candles", tags=["Candles"]
-        )
+        # WebSocket endpoint - /ws/ohlcv
+        app.include_router(websocket_router, prefix=f"{self.prefix}")
 
-        # Timeseries endpoints (from timeseries_repository_example.py)
-        app.include_router(
-            timeseries_router,
-            prefix=f"{self.prefix}/api/timeseries",
-            tags=["Timeseries"],
-        )
-
-        # WebSocket endpoints (from websocket_live_ohlcv_example.py)
-        app.include_router(
-            websocket_router, prefix=f"{self.prefix}/ws", tags=["WebSocket"]
-        )
-
-        # Catalog endpoints
-        app.include_router(
-            exchanges_router, prefix=f"{self.prefix}/api", tags=["Exchanges"]
-        )
-        app.include_router(
-            symbols_router, prefix=f"{self.prefix}/api", tags=["Symbols"]
-        )
+        # Catalog endpoints - /api/exchanges, /api/symbols
+        app.include_router(exchanges_router, prefix=f"{self.prefix}/api")
+        app.include_router(symbols_router, prefix=f"{self.prefix}/api")
 
     def _add_event_handlers(self, app: FastAPI) -> None:
         """Add event handlers to the application."""

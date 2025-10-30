@@ -17,7 +17,7 @@ from ..models.responses import CandlesResponse
 
 logger = get_component_logger("fullon.api.ohlcv.candles")
 
-router = APIRouter()
+router = APIRouter(prefix="/candles", tags=["Candles"])
 
 
 def convert_timeframe_to_compression(timeframe: str) -> tuple[int, str]:

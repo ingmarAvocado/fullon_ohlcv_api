@@ -15,7 +15,7 @@ from starlette.websockets import WebSocketState
 
 logger = get_component_logger("fullon.api.ohlcv.websocket")
 
-router = APIRouter()
+router = APIRouter(prefix="/ws", tags=["WebSocket"])
 
 
 class ConnectionManager:

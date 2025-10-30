@@ -1,6 +1,6 @@
 [project]
 name = "fullon_ohlcv_api"
-version = "0.2.6"
+version = "0.3.0"
 description = "FastAPI Gateway for fullon_ohlcv with LRRS-compliant architecture"
 authors = [{name = "Ingmar Frey", email = "ingmar.frey@gmail.com"}]
 readme = "README.md"

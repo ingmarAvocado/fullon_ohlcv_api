@@ -17,7 +17,7 @@ from .candles import convert_timeframe_to_compression
 
 logger = get_component_logger("fullon.api.ohlcv.timeseries")
 
-router = APIRouter()
+router = APIRouter(prefix="/timeseries", tags=["Timeseries"])
 
 
 @router.get("/{exchange}/{symbol:path}/ohlcv", response_model=TimeseriesResponse)
